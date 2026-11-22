@@ -1,0 +1,16 @@
+# Dependencies & build output
+node_modules/
+dist/
+*.tsbuildinfo
+
+# OS & editor files
+.DS_Store
+.vscode/
+.idea/
+
+# Local lab reference media (too large / local-only)
+Data Communication Lab/
+*.MOV
+*.mov
+*.mp4
+Lab_Manual_CSE 3204_final.pdf
