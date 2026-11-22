@@ -6,11 +6,13 @@ import {
   PortDef,
   SwitchDef,
   WireConnection,
+  WireRule,
   WiringCheckResult,
 } from '../types/lab';
 
 interface TrainerBoardProps {
   lab: LabDefinition;
+  activeWireRules: WireRule[];
   wires: WireConnection[];
   knobs: Record<string, number>;
   switches: Record<string, string>;
@@ -52,6 +54,7 @@ function buildWirePath(
 
 export const TrainerBoard: React.FC<TrainerBoardProps> = ({
   lab,
+  activeWireRules,
   wires,
   knobs,
   switches,
@@ -616,7 +619,7 @@ export const TrainerBoard: React.FC<TrainerBoardProps> = ({
   const hoveredPortObj = hoveredPort ? portMap.get(hoveredPort) : null;
 
   // Determine missing rules to highlight when Show Hints is enabled
-  const hintRules = showHints ? lab.wireRules : [];
+  const hintRules = showHints ? activeWireRules : [];
   const missingIds = new Set(checkResult?.missing.map((m) => m.ruleId) ?? []);
   const extraWireIds = new Set(checkResult?.extra.map((e) => e.wireId) ?? []);
 

@@ -438,30 +438,89 @@ function evalPAM(
     return phase < ts * 0.45 ? srcCfg.amp * Math.sin(TWO_PI * srcCfg.freq * t) : 0;
   };
 
-  // Buffer block
-  const bufActive = pamActive && graph.isConnected('pam_out', 'buf_in') && !isShorted('buf_in');
-  const bufOutFn = (t: number) => (bufActive ? pamOutFn(t) * 0.96 : 0);
+  // PWM Modulation Block input (can be driven by S&H O/P, SAMPLE O/P, or directly by a sine generator!)
+  let pwmSrcCfg: { freq: number; amp: number; name: string } | null = null;
+  let pwmFromHold = false;
+  if (!isShorted('pwm_in')) {
+    if (srcCfg && (graph.isConnected('sh_hold_out', 'pwm_in') || graph.isConnected('sh_sample_out', 'pwm_in'))) {
+      pwmSrcCfg = srcCfg;
+      pwmFromHold = graph.isConnected('sh_hold_out', 'pwm_in');
+    } else {
+      for (const [gid, cfg] of Object.entries(genMap)) {
+        if (graph.isConnected(gid, 'pwm_in')) {
+          pwmSrcCfg = cfg;
+          break;
+        }
+      }
+    }
+  }
+  const pwmActive = Boolean(pwmSrcCfg);
+
+  // PWM carrier period follows JP1 sampling clock (fsHz)
+  const pwmDutyAt = (t: number): number => {
+    if (!pwmSrcCfg) return 0.5;
+    const tEval = pwmFromHold ? Math.floor(t / ts) * ts : t;
+    const norm = Math.sin(TWO_PI * pwmSrcCfg.freq * tEval) * Math.min(1, pwmSrcCfg.amp / 1.8);
+    // Duty cycle varies smoothly from 12% to 88% with modulating sine!
+    return Math.min(0.88, Math.max(0.12, 0.5 + 0.36 * norm));
+  };
+
+  const pwmOutFn = (t: number) => {
+    if (!pwmActive) return 0;
+    const phase = (((t % ts) + ts) % ts) / ts;
+    return phase < pwmDutyAt(t) ? 3.8 : 0;
+  };
+
+  // PPM Modulation Block is internally driven by the falling/trailing edge of PWM (dashed trace on TCM 001-02 PCB!)
+  const ppmActive = pwmActive;
+  const ppmOutFn = (t: number) => {
+    if (!ppmActive) return 0;
+    const phase = (((t % ts) + ts) % ts) / ts;
+    const pulsePos = pwmDutyAt(t) * 0.85; // pulse shifts across 10%..75% of the period
+    const pulseWidth = 0.12; // narrow fixed-width pulse!
+    return phase >= pulsePos && phase < pulsePos + pulseWidth ? 3.8 : 0;
+  };
+
+  // Buffer block: accepts PAM OUTPUT, PWM OUTPUT, or PPM OUTPUT!
+  let bufMode: 'PAM' | 'PWM' | 'PPM' | null = null;
+  let activeSrcCfg: { freq: number; amp: number; name: string } | null = null;
+  if (!isShorted('buf_in')) {
+    if (pamActive && graph.isConnected('pam_out', 'buf_in')) {
+      bufMode = 'PAM';
+      activeSrcCfg = srcCfg;
+    } else if (pwmActive && graph.isConnected('pwm_out', 'buf_in')) {
+      bufMode = 'PWM';
+      activeSrcCfg = pwmSrcCfg;
+    } else if (ppmActive && graph.isConnected('ppm_out', 'buf_in')) {
+      bufMode = 'PPM';
+      activeSrcCfg = pwmSrcCfg;
+    }
+  }
+  const bufActive = Boolean(bufMode && activeSrcCfg);
+
+  const bufOutFn = (t: number) => {
+    if (!bufActive) return 0;
+    if (bufMode === 'PAM') return pamOutFn(t) * 0.96;
+    if (bufMode === 'PWM') return pwmOutFn(t) * 0.96;
+    return ppmOutFn(t) * 0.96;
+  };
 
   // Amplifier block
   const ampActive = bufActive && graph.isConnected('buf_out', 'amp_in') && !isShorted('amp_in');
   const ampOutFn = (t: number) => (ampActive ? bufOutFn(t) * p1Gain : 0);
 
-  // 4th-Order Butterworth Filter block (reconstructs analog sine!)
+  // 4th-Order Butterworth Filter block (reconstructs analog sine from PAM, PWM, OR PPM!)
   const bwActive = ampActive && graph.isConnected('amp_out', 'bw_in') && !isShorted('bw_in');
   const bwOutFn = (t: number) => {
-    if (!bwActive || !srcCfg) return 0;
-    // Slight aliasing / ripple if fs is close to Nyquist (e.g. 4kHz sampling on 2kHz sine)
-    const ratio = fsHz / srcCfg.freq;
-    const ripple = ratio <= 4 ? 0.22 * srcCfg.amp * Math.sin(TWO_PI * (fsHz - srcCfg.freq) * t) : 0.02 * srcCfg.amp * Math.sin(TWO_PI * fsHz * t);
-    return srcCfg.amp * p1Gain * 0.85 * Math.sin(TWO_PI * srcCfg.freq * t - 0.18) + ripple;
+    if (!bwActive || !activeSrcCfg) return 0;
+    const ratio = fsHz / activeSrcCfg.freq;
+    const ripple =
+      ratio <= 4
+        ? 0.22 * activeSrcCfg.amp * Math.sin(TWO_PI * (fsHz - activeSrcCfg.freq) * t)
+        : 0.025 * activeSrcCfg.amp * Math.sin(TWO_PI * fsHz * t);
+    const phaseLag = bufMode === 'PPM' ? 0.24 : bufMode === 'PWM' ? 0.2 : 0.16;
+    return activeSrcCfg.amp * p1Gain * 0.85 * Math.sin(TWO_PI * activeSrcCfg.freq * t - phaseLag) + ripple;
   };
-
-  // Optional PWM / PPM if user explores them
-  const pwmActive =
-    !isShorted('pwm_in') &&
-    (graph.isConnected('sh_sample_out', 'pwm_in') ||
-      graph.isConnected('gen_1k', 'pwm_in') ||
-      graph.isConnected('gen_500', 'pwm_in'));
 
   if (graph.isConnected(portId, 'sh_sample_out')) {
     if (!srcCfg) return makeZero(portId, portLabel, 'Sample O/P (No Input)', 'Connect 1KHZ or 500HZ → S/S&H INPUT');
@@ -499,60 +558,79 @@ function evalPAM(
       sample: pamOutFn,
     };
   }
-  if (graph.isConnected(portId, 'buf_out')) {
-    if (!bufActive || !srcCfg) return makeZero(portId, portLabel, 'Buffer O/P (Unwired)', 'Connect PAM OUTPUT → BUFFER INPUT');
+  if (graph.isConnected(portId, 'pwm_out')) {
+    if (!pwmActive || !pwmSrcCfg) {
+      return makeZero(portId, portLabel, 'PWM O/P (Unwired)', 'Connect S&H O/P (or SAMPLE O/P) → PWM INPUT');
+    }
     return {
       portId,
       portLabel,
-      signalName: `Buffered PAM (${(fsHz / 1000).toFixed(0)} kHz)`,
+      signalName: `PWM Modulated (${(fsHz / 1000).toFixed(0)} kHz variable width)`,
       isConnected: true,
-      vpp: srcCfg.amp * 1.92,
-      freqHz: srcCfg.freq,
+      vpp: 3.8,
+      freqHz: pwmSrcCfg.freq,
+      isDigital: true,
+      sample: pwmOutFn,
+    };
+  }
+  if (graph.isConnected(portId, 'ppm_out')) {
+    if (!ppmActive || !pwmSrcCfg) {
+      return makeZero(portId, portLabel, 'PPM O/P (Unwired)', 'Connect S&H O/P → PWM INPUT (drives PPM internally)');
+    }
+    return {
+      portId,
+      portLabel,
+      signalName: `PPM Modulated (${(fsHz / 1000).toFixed(0)} kHz shifted pulses)`,
+      isConnected: true,
+      vpp: 3.8,
+      freqHz: pwmSrcCfg.freq,
+      isDigital: true,
+      sample: ppmOutFn,
+    };
+  }
+  if (graph.isConnected(portId, 'buf_out')) {
+    if (!bufActive || !activeSrcCfg) {
+      return makeZero(portId, portLabel, 'Buffer O/P (Unwired)', 'Connect PAM / PWM / PPM OUTPUT → BUFFER INPUT');
+    }
+    return {
+      portId,
+      portLabel,
+      signalName: `Buffered ${bufMode} (${(fsHz / 1000).toFixed(0)} kHz)`,
+      isConnected: true,
+      vpp: bufMode === 'PAM' ? activeSrcCfg.amp * 1.92 : 3.65,
+      freqHz: activeSrcCfg.freq,
+      isDigital: bufMode !== 'PAM',
       sample: bufOutFn,
     };
   }
   if (graph.isConnected(portId, 'amp_out')) {
-    if (!ampActive || !srcCfg) return makeZero(portId, portLabel, 'Amplifier O/P (Unwired)', 'Connect BUFFER OUTPUT → AMPLIFIER INPUT');
+    if (!ampActive || !activeSrcCfg) {
+      return makeZero(portId, portLabel, 'Amplifier O/P (Unwired)', 'Connect BUFFER OUTPUT → AMPLIFIER INPUT');
+    }
     return {
       portId,
       portLabel,
-      signalName: `Amplified PAM (${p1Gain.toFixed(1)}x)`,
+      signalName: `Amplified ${bufMode} (${p1Gain.toFixed(1)}x)`,
       isConnected: true,
-      vpp: srcCfg.amp * 2 * p1Gain,
-      freqHz: srcCfg.freq,
+      vpp: (bufMode === 'PAM' ? activeSrcCfg.amp * 2 : 3.8) * p1Gain,
+      freqHz: activeSrcCfg.freq,
+      isDigital: bufMode !== 'PAM',
       sample: ampOutFn,
     };
   }
   if (graph.isConnected(portId, 'bw_out')) {
-    if (!bwActive || !srcCfg) {
+    if (!bwActive || !activeSrcCfg) {
       return makeZero(portId, portLabel, 'Demodulated O/P (Unwired)', 'Connect AMPLIFIER O/P → 4th ORDER BUTTERWORTH I/P');
     }
     return {
       portId,
       portLabel,
-      signalName: `Reconstructed Sine (${srcCfg.freq} Hz)`,
+      signalName: `Demodulated ${bufMode} Sine (${activeSrcCfg.freq} Hz)`,
       isConnected: true,
-      vpp: srcCfg.amp * 2 * p1Gain * 0.85,
-      freqHz: srcCfg.freq,
-      warning: fsHz / srcCfg.freq <= 4 ? 'Low sampling rate — slight aliasing ripple visible!' : undefined,
+      vpp: activeSrcCfg.amp * 2 * p1Gain * 0.85,
+      freqHz: activeSrcCfg.freq,
+      warning: fsHz / activeSrcCfg.freq <= 4 ? 'Low sampling rate — slight aliasing ripple visible!' : undefined,
       sample: bwOutFn,
-    };
-  }
-  if (graph.isConnected(portId, 'pwm_out') && pwmActive) {
-    const f = srcCfg?.freq ?? 1000;
-    return {
-      portId,
-      portLabel,
-      signalName: 'PWM Modulated Pulse Train',
-      isConnected: true,
-      vpp: 4.0,
-      freqHz: f,
-      isDigital: true,
-      sample: (t) => {
-        const phase = (((t % ts) + ts) % ts) / ts;
-        const duty = 0.5 + 0.38 * Math.sin(TWO_PI * f * t);
-        return phase < duty ? 2.0 : -2.0;
-      },
     };
   }
 

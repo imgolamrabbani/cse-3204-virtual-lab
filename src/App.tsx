@@ -109,8 +109,16 @@ export default function App() {
   const [showHints, setShowHints] = useState<boolean>(false);
   const [checkResult, setCheckResult] = useState<WiringCheckResult | null>(null);
   const [showGuide, setShowGuide] = useState<boolean>(false);
+  const [subModeByLab, setSubModeByLab] = useState<Record<string, string>>({ pam: 'pam' });
 
   const lab = useMemo(() => getLabById(activeLabId), [activeLabId]);
+  const activeSubMode = useMemo(() => {
+    if (!lab.subModes || lab.subModes.length === 0) return null;
+    const chosenId = subModeByLab[lab.id] ?? lab.subModes[0].id;
+    return lab.subModes.find((m) => m.id === chosenId) ?? lab.subModes[0];
+  }, [lab, subModeByLab]);
+
+  const activeWireRules = activeSubMode ? activeSubMode.wireRules : lab.wireRules;
   const wires = wiresByLab[activeLabId];
   const knobs = knobsByLab[activeLabId];
   const switches = switchesByLab[activeLabId];
@@ -173,22 +181,40 @@ export default function App() {
   };
 
   const handleCheckWiring = () => {
-    const result = validateLabWiring(lab, wires);
+    const result = validateLabWiring(lab, wires, activeSubMode?.id);
     setCheckResult(result);
+    if (result.detectedModeId && lab.subModes) {
+      setSubModeByLab((prev) => ({ ...prev, [activeLabId]: result.detectedModeId! }));
+    }
     if (result.isComplete) {
       setCompletedLabs((prev) => ({ ...prev, [activeLabId]: true }));
     }
   };
 
+  const handleSelectSubMode = (modeId: string) => {
+    const mode = lab.subModes?.find((m) => m.id === modeId);
+    if (!mode) return;
+    setSubModeByLab((prev) => ({ ...prev, [activeLabId]: modeId }));
+    setCheckResult(null);
+    // Point CH1 to the selected modulation output so students see the live waveform immediately
+    handleUpdateScope({
+      ch1Port: mode.defaultCh1Port,
+      ch2Port: mode.defaultCh2Port,
+      ch1Enabled: true,
+      ch2Enabled: Boolean(mode.defaultCh2Port),
+      timebaseUs: mode.defaultTimebaseUs,
+    });
+  };
+
   const handleApplyCorrectWiring = () => {
-    const autoWires: WireConnection[] = lab.wireRules.map((rule, idx) => ({
+    const autoWires: WireConnection[] = activeWireRules.map((rule, idx) => ({
       id: `auto_${rule.id}_${idx}`,
       from: rule.hintFrom,
       to: rule.hintTo,
       color: WIRE_PALETTE[idx % WIRE_PALETTE.length],
     }));
     setWiresByLab((prev) => ({ ...prev, [activeLabId]: autoWires }));
-    const verified = validateLabWiring(lab, autoWires);
+    const verified = validateLabWiring(lab, autoWires, activeSubMode?.id);
     setCheckResult(verified);
     if (verified.isComplete) {
       setCompletedLabs((prev) => ({ ...prev, [activeLabId]: true }));
@@ -284,12 +310,41 @@ export default function App() {
                   {lab.modelName}
                 </span>
                 <span className="rounded-md bg-slate-800 px-2 py-0.5 font-mono text-xs text-slate-300">
-                  {wires.length} / {lab.wireRules.length} wires
+                  {wires.length} / {activeWireRules.length} wires
                 </span>
               </div>
               <h2 className="mt-1.5 text-lg font-bold tracking-tight text-white">
                 {lab.title}
               </h2>
+
+              {/* Sub-mode selector (e.g., PAM / PWM / PPM on TCM 001-02) */}
+              {lab.subModes && activeSubMode && (
+                <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mr-1">
+                    Modulation Mode:
+                  </span>
+                  {lab.subModes.map((mode) => {
+                    const isSelected = mode.id === activeSubMode.id;
+                    return (
+                      <button
+                        key={mode.id}
+                        onClick={() => handleSelectSubMode(mode.id)}
+                        title={mode.shortDesc}
+                        className={`rounded-md border px-2.5 py-0.5 font-mono text-xs font-bold transition cursor-pointer ${
+                          isSelected
+                            ? 'border-emerald-400 bg-emerald-500/20 text-emerald-200 shadow-sm'
+                            : 'border-slate-700 bg-slate-900/80 text-slate-400 hover:border-slate-500 hover:text-slate-200'
+                        }`}
+                      >
+                        {mode.label}
+                      </button>
+                    );
+                  })}
+                  <span className="text-[11px] text-slate-400 ml-1 hidden sm:inline">
+                    — {activeSubMode.shortDesc}
+                  </span>
+                </div>
+              )}
             </div>
 
             {/* Required Practice Buttons */}
@@ -396,18 +451,18 @@ export default function App() {
             <div className="rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-3.5 text-xs">
               <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                 <div className="font-bold text-amber-300">
-                  Correct Wiring Reference ({lab.modelName}) — Dashed numbered guides shown on PCB
+                  Correct Wiring Reference ({lab.modelName}{activeSubMode ? ` — ${activeSubMode.label}` : ''}) — Dashed numbered guides shown on PCB
                 </div>
                 <button
                   onClick={handleApplyCorrectWiring}
                   className="inline-flex items-center gap-1.5 rounded-md border border-amber-400/60 bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-200 transition hover:bg-amber-500/30 cursor-pointer"
                 >
                   <Wand2 className="h-3.5 w-3.5" />
-                  Auto-Wire Correct Setup
+                  Auto-Wire {activeSubMode ? activeSubMode.label : 'Correct Setup'}
                 </button>
               </div>
               <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-                {lab.wireRules.map((rule, idx) => (
+                {activeWireRules.map((rule, idx) => (
                   <div
                     key={rule.id}
                     className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950/70 px-2.5 py-1.5 font-mono text-[11px] text-slate-200"
@@ -427,6 +482,7 @@ export default function App() {
           {/* Interactive SVG Hardware Trainer Box */}
           <TrainerBoard
             lab={lab}
+            activeWireRules={activeWireRules}
             wires={wires}
             knobs={knobs}
             switches={switches}

@@ -94,6 +94,16 @@ export interface ProbePreset {
   description: string;
 }
 
+export interface LabSubMode {
+  id: string;
+  label: string;
+  shortDesc: string;
+  wireRules: WireRule[];
+  defaultCh1Port: string;
+  defaultCh2Port: string | null;
+  defaultTimebaseUs: number;
+}
+
 export interface LabDefinition {
   id: LabId;
   labNumber: number;
@@ -113,6 +123,7 @@ export interface LabDefinition {
   knobs: KnobDef[];
   switches: SwitchDef[];
   wireRules: WireRule[];
+  subModes?: LabSubMode[];
   probePresets: ProbePreset[];
   defaultCh1Port: string;
   defaultCh2Port: string | null;
@@ -131,6 +142,8 @@ export interface WireConnection {
 export interface WiringCheckResult {
   isComplete: boolean;
   scorePercent: number;
+  detectedModeId?: string;
+  detectedModeLabel?: string;
   matched: { ruleId: string; label: string }[];
   missing: { ruleId: string; label: string; hintFrom: string; hintTo: string }[];
   extra: { wireId: string; fromLabel: string; toLabel: string }[];

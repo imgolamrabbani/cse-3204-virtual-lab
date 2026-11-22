@@ -207,6 +207,8 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
               sig.signalName.includes('Demodulator') ||
               sig.signalName.includes('FM ') ||
               sig.signalName.includes('PAM') ||
+              sig.signalName.includes('PWM') ||
+              sig.signalName.includes('PPM') ||
               sig.signalName.includes('TDM') ||
               estimatedCycles > 40;
             const subSamples = isHighFreq ? 10 : 2;

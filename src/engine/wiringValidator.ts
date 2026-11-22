@@ -1,4 +1,4 @@
-import { LabDefinition, WireConnection, WiringCheckResult } from '../types/lab';
+import { LabDefinition, WireConnection, WireRule, WiringCheckResult } from '../types/lab';
 
 /**
  * Ports that are internally bridged on the physical PCB (dual banana jacks for the same node).
@@ -64,21 +64,39 @@ function asArray(v: string | string[]): string[] {
   return Array.isArray(v) ? v : [v];
 }
 
-export function validateLabWiring(
+function evaluateRuleSet(
   lab: LabDefinition,
-  wires: WireConnection[]
+  wires: WireConnection[],
+  rules: WireRule[],
+  modeId?: string,
+  modeLabel?: string
 ): WiringCheckResult {
   const graph = new NetGraph(lab.id, wires);
   const portMap = new Map(lab.ports.map((p) => [p.id, p]));
+  const blockMap = new Map(lab.blocks.map((b) => [b.id, b.title.replace(/\n/g, ' ')]));
+
+  const formatPortName = (pid: string) => {
+    const p = portMap.get(pid);
+    if (!p) return pid;
+    if (p.label === 'INPUT' || p.label === 'OUTPUT' || p.label === 'IN' || p.label === 'OUT') {
+      const bTitle = blockMap.get(p.blockId);
+      if (bTitle) {
+        const shortBlock = bTitle
+          .replace(/ MODULATION BLOCK/i, '')
+          .replace(/ BLOCK/i, '')
+          .trim();
+        return `${shortBlock} ${p.label}`;
+      }
+    }
+    return p.label;
+  };
 
   const matched: { ruleId: string; label: string }[] = [];
   const missing: { ruleId: string; label: string; hintFrom: string; hintTo: string }[] = [];
 
-  // Track claimed targets for multi-channel labs (e.g. TDM CH0..CH3 or FDM SUM A/B)
-  // so wiring two sources into the SAME input doesn't falsely satisfy both rules.
   const usedTargets = new Set<string>();
 
-  for (const rule of lab.wireRules) {
+  for (const rule of rules) {
     const froms = asArray(rule.from);
     const tos = asArray(rule.to);
 
@@ -107,14 +125,13 @@ export function validateLabWiring(
     }
   }
 
-  // Detect extra or invalid wires (wires that don't participate in any rule pair or short to GND)
   const extra: { wireId: string; fromLabel: string; toLabel: string }[] = [];
   for (const w of wires) {
     const pFrom = portMap.get(w.from);
     const pTo = portMap.get(w.to);
     const isShortToGnd = pFrom?.kind === 'gnd' || pTo?.kind === 'gnd';
 
-    const matchesAnyRule = lab.wireRules.some((rule) => {
+    const matchesAnyRule = rules.some((rule) => {
       const fs = asArray(rule.from);
       const ts = asArray(rule.to);
       return (
@@ -126,32 +143,69 @@ export function validateLabWiring(
     if (isShortToGnd || !matchesAnyRule) {
       extra.push({
         wireId: w.id,
-        fromLabel: pFrom?.label ?? w.from,
-        toLabel: pTo?.label ?? w.to,
+        fromLabel: formatPortName(w.from),
+        toLabel: formatPortName(w.to),
       });
     }
   }
 
-  const totalRules = lab.wireRules.length;
+  const totalRules = rules.length;
   const scorePercent =
     totalRules === 0 ? 100 : Math.round((matched.length / totalRules) * 100);
   const isComplete = missing.length === 0 && extra.length === 0;
+  const titleTag = modeLabel ? `${modeLabel}` : lab.shortTitle;
 
   let summary = '';
   if (isComplete) {
-    summary = `Perfect wiring! All ${totalRules} required connections for ${lab.shortTitle} are verified.`;
+    summary = `Perfect wiring! All ${totalRules} required connections for ${titleTag} are verified.`;
   } else if (missing.length === 0 && extra.length > 0) {
-    summary = `All required paths are wired, but ${extra.length} unexpected or shorted wire(s) were found.`;
+    summary = `All required ${titleTag} paths are wired, but ${extra.length} unexpected or shorted wire(s) were found.`;
   } else {
-    summary = `${matched.length} of ${totalRules} required connections matched. ${missing.length} connection(s) still needed.`;
+    summary = `${matched.length} of ${totalRules} required connections matched (${titleTag}). ${missing.length} connection(s) still needed.`;
   }
 
   return {
     isComplete,
     scorePercent,
+    detectedModeId: modeId,
+    detectedModeLabel: modeLabel,
     matched,
     missing,
     extra,
     summary,
   };
+}
+
+export function validateLabWiring(
+  lab: LabDefinition,
+  wires: WireConnection[],
+  preferredSubModeId?: string
+): WiringCheckResult {
+  if (!lab.subModes || lab.subModes.length === 0) {
+    return evaluateRuleSet(lab, wires, lab.wireRules);
+  }
+
+  // Evaluate all sub-modes (e.g., PAM, PWM, PPM on TCM 001-02)
+  const results = lab.subModes.map((mode) =>
+    evaluateRuleSet(lab, wires, mode.wireRules, mode.id, mode.label)
+  );
+
+  // If ANY mode is 100% complete (even if user didn't click its pill first), return it immediately!
+  const completeMatch = results.find((r) => r.isComplete);
+  if (completeMatch) return completeMatch;
+
+  // Otherwise pick whichever mode best matches the user's actual wires (highest matched, fewest extras),
+  // breaking ties in favor of the currently selected sub-mode.
+  if (wires.length > 0) {
+    const sorted = [...results].sort((a, b) => {
+      const scoreA = a.matched.length * 10 - a.extra.length * 5 + (a.detectedModeId === preferredSubModeId ? 1 : 0);
+      const scoreB = b.matched.length * 10 - b.extra.length * 5 + (b.detectedModeId === preferredSubModeId ? 1 : 0);
+      return scoreB - scoreA;
+    });
+    return sorted[0];
+  }
+
+  return (
+    results.find((r) => r.detectedModeId === preferredSubModeId) ?? results[0]
+  );
 }
