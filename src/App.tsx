@@ -324,10 +324,10 @@ export default function App() {
 
               <button
                 onClick={() => setShowGuide(true)}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800/80 px-2.5 py-2 text-xs font-semibold text-slate-300 transition hover:border-slate-500 hover:text-white cursor-pointer"
+                className="font-bn inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-2 text-xs font-semibold text-emerald-200 transition hover:border-emerald-400 hover:bg-emerald-500/20 hover:text-white cursor-pointer"
               >
                 <BookOpen className="h-3.5 w-3.5" />
-                Lab Manual
+                ল্যাব ম্যানুয়াল (বাংলা)
               </button>
             </div>
           </header>

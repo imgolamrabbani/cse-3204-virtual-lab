@@ -150,6 +150,33 @@ export interface ChannelSampleInfo {
   sample: (t: number) => number;
 }
 
+export interface WireFlowStep {
+  step: number;
+  connection: string;
+  title: string;
+  why: string;
+  whatHappens: string;
+  ifMissing: string;
+}
+
+export interface ScopeObserveStage {
+  stage: string;
+  ch1: string;
+  ch2: string;
+  whatYouSee: string;
+}
+
+export interface BanglaManual {
+  titleBn: string;
+  fullObjective: string;
+  bigPicture: string;
+  signalFlowSteps: string[];
+  theoryBn: string[];
+  wireFlow: WireFlowStep[];
+  scopeGuide: ScopeObserveStage[];
+  vivaTips: string[];
+}
+
 export interface ScopeState {
   ch1Port: string | null;
   ch2Port: string | null;

@@ -14,3 +14,10 @@ Data Communication Lab/
 *.mov
 *.mp4
 Lab_Manual_CSE 3204_final.pdf
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example
