@@ -1,44 +1,70 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   CSE 3204 Virtual Lab — Precision Benchtop Instrument Design System
-   Grounded in physical hardware: warm drafting-bench stone, Rohde & Schwarz
-   anodized chassis, cobalt lab patch cords, and dark CRT phosphor glass.
+   CSE 3204 Virtual Lab — Tactile Studio Benchtop Design System
+   Dual-mode (Day Drafting Bench / Night Carbon Lab) with physical ESD mat
+   micro-grid, machined hardware key bevels, and Emil Kowalski spring curves.
    ========================================================================== */
-:root {
-  /* Physical bench & instrument surfaces */
-  --bench-bg: #f3f1eb;
-  --bench-recess: #e8e5dc;
-  --sheet-surface: #fbfaf7;
-  --chassis-bezel: #e5e2d9;
-  --chassis-well: #dad6cb;
-  --crt-glass: #0a0e14;
+
+:root,
+[data-theme='day'] {
+  color-scheme: light;
+
+  /* Day Bench: Warm anodized drafting studio (Braun / Teenage Engineering) */
+  --bench-bg: #eeebe2;
+  --bench-dot: rgba(20, 23, 28, 0.09);
+  --bench-recess: #e2ded3;
+  --sheet-surface: #faf8f4;
+  --chassis-bezel: #dfdcd2;
+  --chassis-well: #d4d0c4;
+  --chassis-pod: #f5f3ed;
+  --crt-glass: #080c12;
 
   /* Four-tier ink hierarchy */
   --ink-primary: #14171c;
-  --ink-secondary: #3f4650;
-  --ink-tertiary: #636b76;
-  --ink-muted: #8a929c;
+  --ink-secondary: #3c424c;
+  --ink-tertiary: #606874;
+  --ink-muted: #8b929d;
 
   /* Hairline structural borders */
   --hairline: rgba(20, 23, 28, 0.11);
-  --hairline-strong: rgba(20, 23, 28, 0.22);
-  --hairline-inset: rgba(255, 255, 255, 0.65);
+  --hairline-strong: rgba(20, 23, 28, 0.2);
+  --key-top-highlight: rgba(255, 255, 255, 0.85);
+  --key-bottom-shade: rgba(20, 23, 28, 0.14);
 
-  /* Signal & electrical accents (60/30/10 restraint — cobalt leads) */
+  /* Signal & electrical accents */
   --cord-cobalt: #1d4ed8;
   --cord-cobalt-hover: #1e40af;
-  --cord-cobalt-soft: rgba(29, 78, 216, 0.09);
+  --cord-cobalt-soft: rgba(29, 78, 216, 0.1);
   --signal-pass: #15803d;
-  --signal-pass-soft: rgba(21, 128, 61, 0.09);
+  --signal-pass-soft: rgba(21, 128, 61, 0.1);
+  --signal-pass-ink: #14532d;
   --signal-warn: #b45309;
   --signal-warn-soft: rgba(180, 83, 9, 0.1);
+  --signal-warn-ink: #78350f;
   --signal-fault: #be123c;
-  --signal-fault-soft: rgba(190, 18, 60, 0.08);
+  --signal-fault-soft: rgba(190, 18, 60, 0.09);
   --probe-ch1: #b45309;
-  --probe-ch1-crt: #facc15;
+  --probe-ch1-soft: rgba(217, 119, 6, 0.14);
+  --probe-ch1-ink: #92400e;
   --probe-ch2: #0369a1;
-  --probe-ch2-crt: #38bdf8;
+  --probe-ch2-soft: rgba(2, 132, 199, 0.12);
+  --probe-ch2-ink: #075985;
+
+  /* Shadows */
+  --shadow-hardware:
+    0 1px 0 0 rgba(255, 255, 255, 0.72) inset,
+    0 20px 38px -18px rgba(20, 23, 28, 0.36),
+    0 4px 10px -2px rgba(20, 23, 28, 0.15);
+  --shadow-scope:
+    0 1px 0 0 rgba(255, 255, 255, 0.85) inset,
+    0 0 0 1px rgba(20, 23, 28, 0.14),
+    0 16px 32px -16px rgba(20, 23, 28, 0.26);
+  --shadow-key:
+    0 1px 0 0 rgba(255, 255, 255, 0.85) inset,
+    0 1px 2px rgba(20, 23, 28, 0.1),
+    0 2px 0 0 rgba(20, 23, 28, 0.08);
+  --shadow-key-active: 0 1px 2px rgba(20, 23, 28, 0.18) inset;
 
   /* Typography */
   --font-sans: 'IBM Plex Sans', 'Hind Siliguri', -apple-system, BlinkMacSystemFont, sans-serif;
@@ -48,14 +74,72 @@
   /* Emil Kowalski motion tokens */
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
-  --dur-press: 130ms;
+  --dur-press: 120ms;
   --dur-ui: 180ms;
-  --dur-modal: 220ms;
 
-  /* Concentric radii */
   --radius-sm: 6px;
   --radius-md: 10px;
   --radius-lg: 14px;
+}
+
+[data-theme='night'] {
+  color-scheme: dark;
+
+  /* Night Bench: Dieter Rams / Tektronix matte carbon-graphite lab */
+  --bench-bg: #0f1013;
+  --bench-dot: rgba(255, 255, 255, 0.055);
+  --bench-recess: #17191e;
+  --sheet-surface: #1b1d23;
+  --chassis-bezel: #1d2026;
+  --chassis-well: #131519;
+  --chassis-pod: #23262e;
+  --crt-glass: #06090e;
+
+  /* Four-tier warm-neutral ink hierarchy */
+  --ink-primary: #f1efe9;
+  --ink-secondary: #c4c1b8;
+  --ink-tertiary: #8d8b84;
+  --ink-muted: #5d5c57;
+
+  /* Subtle dark-mode hairlines */
+  --hairline: rgba(255, 252, 245, 0.085);
+  --hairline-strong: rgba(255, 252, 245, 0.16);
+  --key-top-highlight: rgba(255, 255, 255, 0.09);
+  --key-bottom-shade: rgba(0, 0, 0, 0.55);
+
+  /* Signal & electrical accents calibrated for matte carbon */
+  --cord-cobalt: #3b82f6;
+  --cord-cobalt-hover: #60a5fa;
+  --cord-cobalt-soft: rgba(59, 130, 246, 0.16);
+  --signal-pass: #34d399;
+  --signal-pass-soft: rgba(52, 211, 153, 0.13);
+  --signal-pass-ink: #a7f3d0;
+  --signal-warn: #fbbf24;
+  --signal-warn-soft: rgba(251, 191, 36, 0.13);
+  --signal-warn-ink: #fde68a;
+  --signal-fault: #fb7185;
+  --signal-fault-soft: rgba(251, 113, 133, 0.13);
+  --probe-ch1: #facc15;
+  --probe-ch1-soft: rgba(250, 204, 21, 0.14);
+  --probe-ch1-ink: #fde047;
+  --probe-ch2: #38bdf8;
+  --probe-ch2-soft: rgba(56, 189, 248, 0.14);
+  --probe-ch2-ink: #7dd3fc;
+
+  /* Shadows */
+  --shadow-hardware:
+    0 1px 0 0 rgba(255, 255, 255, 0.08) inset,
+    0 24px 44px -16px rgba(0, 0, 0, 0.72),
+    0 0 0 1px rgba(255, 255, 255, 0.06);
+  --shadow-scope:
+    0 1px 0 0 rgba(255, 255, 255, 0.09) inset,
+    0 0 0 1px rgba(255, 255, 255, 0.1),
+    0 20px 40px -16px rgba(0, 0, 0, 0.68);
+  --shadow-key:
+    0 1px 0 0 rgba(255, 255, 255, 0.08) inset,
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 2px 0 0 rgba(0, 0, 0, 0.4);
+  --shadow-key-active: 0 1px 3px rgba(0, 0, 0, 0.65) inset;
 }
 
 @layer base {
@@ -68,6 +152,9 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
+    transition:
+      background-color 220ms var(--ease-out),
+      color 220ms var(--ease-out);
   }
 
   h1,
@@ -94,7 +181,6 @@
     font-variant-numeric: tabular-nums;
   }
 
-  /* Instant accessible keyboard focus ring across every interactive control */
   button:focus-visible,
   select:focus-visible,
   input:focus-visible,
@@ -104,7 +190,29 @@
   }
 }
 
-/* Tactile hardware button feel — compositor-only transform + opacity */
+/* Precision ESD Lab Workbench Calibration Dot Surface */
+.bench-mat-surface {
+  background-color: var(--bench-bg);
+  background-image: radial-gradient(var(--bench-dot) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Machined Hardware Key Feel — physical travel + top specular bevel */
+.hw-key {
+  box-shadow: var(--shadow-key);
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    box-shadow var(--dur-press) var(--ease-out),
+    background-color var(--dur-ui) var(--ease-out),
+    border-color var(--dur-ui) var(--ease-out),
+    color var(--dur-ui) var(--ease-out);
+}
+
+.hw-key:active:not(:disabled) {
+  transform: translateY(1px) scale(0.975);
+  box-shadow: var(--shadow-key-active);
+}
+
 .btn-tactile {
   transition:
     transform var(--dur-press) var(--ease-out),
@@ -117,51 +225,35 @@
   transform: scale(0.97);
 }
 
-/* Bench contact shadow for physical hardware sitting on the workbench */
 .hardware-unit-shadow {
-  box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.7) inset,
-    0 14px 30px -14px rgba(20, 23, 28, 0.34),
-    0 3px 8px -2px rgba(20, 23, 28, 0.16);
+  box-shadow: var(--shadow-hardware);
 }
 
 .scope-chassis-shadow {
+  box-shadow: var(--shadow-scope);
+}
+
+/* Illuminated Recessed Jewel LED */
+.jewel-led {
   box-shadow:
-    0 1px 0 0 rgba(255, 255, 255, 0.85) inset,
-    0 0 0 1px rgba(20, 23, 28, 0.14),
-    0 12px 26px -14px rgba(20, 23, 28, 0.24);
+    inset 0 1px 1px rgba(255, 255, 255, 0.55),
+    0 0 8px currentColor;
 }
 
-/* Modal & validation panel deliberate entrance (never scale(0)) */
-@keyframes sheetEnter {
+/* Animated electrical current pulses flowing through active patch cords */
+@keyframes signalFlow {
   from {
-    opacity: 0;
-    transform: translateY(6px) scale(0.975);
+    stroke-dashoffset: 36;
   }
   to {
-    opacity: 1;
-    transform: translateY(0) scale(1);
+    stroke-dashoffset: 0;
   }
 }
 
-@keyframes backdropFade {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
+.wire-signal-pulse {
+  animation: signalFlow 1.15s linear infinite;
 }
 
-.animate-sheet-enter {
-  animation: sheetEnter var(--dur-modal) var(--ease-out) both;
-}
-
-.animate-backdrop-fade {
-  animation: backdropFade 180ms var(--ease-out) both;
-}
-
-/* PCB hint wire animation */
 @keyframes dashFlow {
   to {
     stroke-dashoffset: -24;
@@ -175,7 +267,7 @@
 @keyframes ledPulse {
   0%,
   100% {
-    opacity: 0.92;
+    opacity: 0.9;
   }
   50% {
     opacity: 1;
@@ -186,20 +278,17 @@
   animation: ledPulse 2.4s ease-in-out infinite;
 }
 
-/* Respect prefers-reduced-motion: preserve opacity clarity, drop movement */
 @media (prefers-reduced-motion: reduce) {
-  .animate-sheet-enter {
-    animation-name: backdropFade;
-  }
-  .btn-tactile:active:not(:disabled) {
-    transform: none;
-  }
+  .wire-signal-pulse,
   .hint-wire-flow {
     animation: none;
   }
+  .hw-key:active:not(:disabled),
+  .btn-tactile:active:not(:disabled) {
+    transform: none;
+  }
 }
 
-/* Clean restrained scrollbars */
 ::-webkit-scrollbar {
   width: 7px;
   height: 7px;
@@ -210,10 +299,6 @@
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(20, 23, 28, 0.18);
+  background: var(--hairline-strong);
   border-radius: 999px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(20, 23, 28, 0.32);
 }

@@ -6,7 +6,9 @@ import {
   Sparkles,
   Unplug,
 } from 'lucide-react';
+import { motion } from 'motion/react';
 import { ChannelSampleInfo, LabDefinition, ScopeState } from '../types/lab';
+import { benchAudio } from '../utils/benchAudio';
 
 interface OscilloscopeProps {
   lab: LabDefinition;
@@ -32,6 +34,59 @@ function formatFreq(hz: number): string {
   if (hz >= 1000) return `${(hz / 1000).toFixed(hz >= 10000 ? 1 : 2)} kHz`;
   return `${hz.toFixed(0)} Hz`;
 }
+
+interface RotaryEncoderDialProps {
+  index: number;
+  totalSteps: number;
+  accentColor: string;
+  size?: number;
+  title: string;
+  onStep: (delta: number) => void;
+}
+
+const RotaryEncoderDial: React.FC<RotaryEncoderDialProps> = ({
+  index,
+  totalSteps,
+  accentColor,
+  size = 38,
+  title,
+  onStep,
+}) => {
+  const safeIdx = Math.max(0, Math.min(totalSteps - 1, index));
+  const angle = -130 + (safeIdx / Math.max(1, totalSteps - 1)) * 260;
+
+  return (
+    <button
+      type="button"
+      title={`${title} — click to step, or scroll mousewheel`}
+      aria-label={title}
+      onClick={() => onStep(safeIdx >= totalSteps - 1 ? -(totalSteps - 1) : 1)}
+      onWheel={(e) => {
+        e.preventDefault();
+        onStep(e.deltaY < 0 ? 1 : -1);
+      }}
+      style={{ width: size, height: size }}
+      className="relative shrink-0 rounded-full border border-[var(--hairline-strong)] bg-[var(--chassis-well)] p-[3px] shadow-[inset_0_1px_3px_rgba(0,0,0,0.35)] cursor-ns-resize transition-transform active:scale-95"
+    >
+      {/* Subtle outer tick arc */}
+      <span
+        aria-hidden="true"
+        className="pointer-events-none absolute -inset-[3px] rounded-full border border-dashed border-[var(--ink-muted)]/45"
+      />
+      {/* Rotating machined aluminum knob cap */}
+      <motion.div
+        animate={{ rotate: angle }}
+        transition={{ type: 'spring', stiffness: 420, damping: 28 }}
+        className="relative h-full w-full rounded-full border border-white/25 bg-[linear-gradient(145deg,#5a616d_0%,#2b2f37_100%)] shadow-[0_2px_4px_rgba(0,0,0,0.45)]"
+      >
+        <span
+          style={{ backgroundColor: accentColor }}
+          className="absolute left-1/2 top-[3px] h-[9px] w-[2.5px] -translate-x-1/2 rounded-full shadow-[0_0_4px_rgba(0,0,0,0.5)]"
+        />
+      </motion.div>
+    </button>
+  );
+};
 
 export const Oscilloscope: React.FC<OscilloscopeProps> = ({
   lab,
@@ -78,7 +133,7 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
           ctx.scale(dpr, dpr);
 
           // 1. Deep CRT / Rohde & Schwarz LCD Dark Glass
-          ctx.fillStyle = '#090d13';
+          ctx.fillStyle = '#070b11';
           ctx.fillRect(0, 0, cssW, cssH);
 
           // 2. Precision 10×8 Graticule
@@ -263,7 +318,7 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
           }
 
           // Top CRT HUD Bar
-          ctx.fillStyle = 'rgba(13, 18, 26, 0.94)';
+          ctx.fillStyle = 'rgba(11, 15, 22, 0.94)';
           ctx.fillRect(0, 0, cssW, padT - 1);
           ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
           ctx.beginPath();
@@ -286,7 +341,7 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
           );
 
           // Bottom CRT HUD Bar
-          ctx.fillStyle = 'rgba(13, 18, 26, 0.94)';
+          ctx.fillStyle = 'rgba(11, 15, 22, 0.94)';
           ctx.fillRect(0, cssH - padB + 1, cssW, padB);
           ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
           ctx.beginPath();
@@ -316,15 +371,25 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
     const idx = TIMEBASE_STEPS_US.indexOf(scope.timebaseUs);
     const cur = idx === -1 ? 5 : idx;
     const next = Math.min(TIMEBASE_STEPS_US.length - 1, Math.max(0, cur + delta));
-    onUpdateScope({ timebaseUs: TIMEBASE_STEPS_US[next] });
+    if (next !== cur) {
+      benchAudio.tick();
+      onUpdateScope({ timebaseUs: TIMEBASE_STEPS_US[next] });
+    }
   };
 
   const stepVdiv = (ch: 'ch1Vdiv' | 'ch2Vdiv', delta: number) => {
     const idx = VDIV_STEPS.indexOf(scope[ch]);
     const cur = idx === -1 ? 2 : idx;
     const next = Math.min(VDIV_STEPS.length - 1, Math.max(0, cur + delta));
-    onUpdateScope({ [ch]: VDIV_STEPS[next] });
+    if (next !== cur) {
+      benchAudio.tick();
+      onUpdateScope({ [ch]: VDIV_STEPS[next] });
+    }
   };
+
+  const ch1VIdx = Math.max(0, VDIV_STEPS.indexOf(scope.ch1Vdiv));
+  const ch2VIdx = Math.max(0, VDIV_STEPS.indexOf(scope.ch2Vdiv));
+  const tbIdx = Math.max(0, TIMEBASE_STEPS_US.indexOf(scope.timebaseUs));
 
   return (
     <section
@@ -347,23 +412,34 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
 
         <div className="flex items-center gap-1.5">
           <button
-            onClick={onAutoset}
-            className="btn-tactile inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--ink-primary)] hover:bg-white cursor-pointer"
+            onClick={() => {
+              benchAudio.click();
+              onAutoset();
+            }}
+            className="hw-key inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--hairline-strong)] bg-[var(--chassis-pod)] px-2.5 py-1 text-xs font-semibold text-[var(--ink-primary)] hover:brightness-105 cursor-pointer"
             title="Auto-scale Timebase and Volts/Div to fit probed signals"
           >
             <Sparkles className="h-3.5 w-3.5 text-[var(--cord-cobalt)]" />
             Autoset
           </button>
           <button
-            onClick={() => onUpdateScope({ running: !scope.running })}
-            className={`btn-tactile inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-1 text-xs font-semibold cursor-pointer ${
+            onClick={() => {
+              benchAudio.click();
+              onUpdateScope({ running: !scope.running });
+            }}
+            className={`hw-key inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-1 text-xs font-semibold cursor-pointer ${
               scope.running
-                ? 'border-[var(--signal-pass)]/35 bg-[var(--signal-pass-soft)] text-[var(--signal-pass)] hover:bg-emerald-600/15'
-                : 'border-[var(--signal-fault)]/35 bg-[var(--signal-fault-soft)] text-[var(--signal-fault)] hover:bg-rose-600/15'
+                ? 'border-[var(--signal-pass)]/40 bg-[var(--signal-pass-soft)] text-[var(--signal-pass)]'
+                : 'border-[var(--signal-fault)]/40 bg-[var(--signal-fault-soft)] text-[var(--signal-fault)]'
             }`}
           >
-            {scope.running ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
-            {scope.running ? 'Freeze' : 'Run'}
+            <span
+              className={`jewel-led h-2 w-2 rounded-full ${
+                scope.running ? 'bg-emerald-400 text-emerald-400' : 'bg-rose-400 text-rose-400'
+              }`}
+            />
+            {scope.running ? <Pause className="h-3 w-3" /> : <Play className="h-3 w-3" />}
+            {scope.running ? 'RUN' : 'HOLD'}
           </button>
         </div>
       </div>
@@ -372,10 +448,15 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
       <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-12">
         {/* Left 8 cols: Recessed CRT Display + Stage Probe Bar */}
         <div className="flex flex-col gap-2.5 xl:col-span-8">
-          <div className="relative overflow-hidden rounded-[var(--radius-md)] border-[3px] border-[#262b33] bg-[var(--crt-glass)] shadow-[inset_0_2px_10px_rgba(0,0,0,0.85)]">
+          <div className="relative overflow-hidden rounded-[var(--radius-md)] border-[3px] border-[#262b33] bg-[var(--crt-glass)] shadow-[inset_0_2px_12px_rgba(0,0,0,0.9)]">
             <canvas
               ref={canvasRef}
               className="block h-[270px] w-full sm:h-[296px]"
+            />
+            {/* Anti-glare CRT glass reflection sheen */}
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-0 bg-[linear-gradient(125deg,rgba(255,255,255,0.055)_0%,rgba(255,255,255,0.01)_36%,transparent_58%)]"
             />
           </div>
 
@@ -383,13 +464,13 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
           {(ch1Signal.warning || ch2Signal.warning) && (
             <div className="flex flex-wrap gap-2 text-xs">
               {ch1Signal.warning && (
-                <div className="rounded-[var(--radius-sm)] border border-amber-600/30 bg-amber-500/10 px-2.5 py-1 text-amber-950">
+                <div className="rounded-[var(--radius-sm)] border border-[var(--probe-ch1)]/35 bg-[var(--probe-ch1-soft)] px-2.5 py-1 text-[var(--probe-ch1-ink)]">
                   <strong className="font-mono">CH1 ({ch1Signal.portLabel}):</strong>{' '}
                   {ch1Signal.warning}
                 </div>
               )}
               {ch2Signal.warning && (
-                <div className="rounded-[var(--radius-sm)] border border-sky-700/30 bg-sky-500/10 px-2.5 py-1 text-sky-950">
+                <div className="rounded-[var(--radius-sm)] border border-[var(--probe-ch2)]/35 bg-[var(--probe-ch2-soft)] px-2.5 py-1 text-[var(--probe-ch2-ink)]">
                   <strong className="font-mono">CH2 ({ch2Signal.portLabel}):</strong>{' '}
                   {ch2Signal.warning}
                 </div>
@@ -397,7 +478,7 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
             </div>
           )}
 
-          {/* Quick Observation Stage Buttons (recessed hardware button strip) */}
+          {/* Quick Observation Stage Hardware Buttons */}
           <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
             <span className="mr-1 text-[11.5px] font-medium text-[var(--ink-tertiary)]">
               Probe stage:
@@ -408,7 +489,8 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
               return (
                 <button
                   key={preset.id}
-                  onClick={() =>
+                  onClick={() => {
+                    benchAudio.click();
                     onUpdateScope({
                       ch1Port: preset.ch1,
                       ch2Port: preset.ch2,
@@ -417,13 +499,13 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
                       timebaseUs: preset.timebaseUs,
                       ch1Vdiv: preset.ch1Vdiv,
                       ch2Vdiv: preset.ch2Vdiv,
-                    })
-                  }
+                    });
+                  }}
                   title={preset.description}
-                  className={`btn-tactile rounded-[var(--radius-sm)] border px-2.5 py-1 text-[11.5px] font-medium cursor-pointer ${
+                  className={`hw-key rounded-[var(--radius-sm)] border px-2.5 py-1 text-[11.5px] font-medium cursor-pointer ${
                     isActive
-                      ? 'border-[var(--ink-primary)] bg-[var(--ink-primary)] text-white'
-                      : 'border-[var(--hairline-strong)] bg-[var(--sheet-surface)] text-[var(--ink-secondary)] hover:bg-white hover:text-[var(--ink-primary)]'
+                      ? 'border-[var(--ink-primary)] bg-[var(--ink-primary)] text-[var(--sheet-surface)]'
+                      : 'border-[var(--hairline-strong)] bg-[var(--chassis-pod)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
                   }`}
                 >
                   {preset.label}
@@ -433,39 +515,51 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
           </div>
         </div>
 
-        {/* Right 4 cols: Physical Channel Pods & Horizontal Timebase */}
+        {/* Right 4 cols: Physical Channel Pods & Horizontal Timebase with Rotary Dials */}
         <div className="flex flex-col justify-between gap-2.5 xl:col-span-4">
           {/* CH1 Hardware Pod (Yellow Channel) */}
-          <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--sheet-surface)] p-3">
+          <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--chassis-pod)] p-3">
             <div className="mb-2.5 flex items-center justify-between gap-1.5">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400 ring-1 ring-amber-700/40" />
+                <span
+                  className={`jewel-led h-2.5 w-2.5 shrink-0 rounded-full ${
+                    scope.ch1Enabled
+                      ? 'bg-amber-400 text-amber-400'
+                      : 'bg-[var(--ink-muted)] text-transparent'
+                  }`}
+                />
                 <span className="font-mono text-xs font-bold text-[var(--ink-primary)]">
                   CH1
                 </span>
-                <span className="truncate rounded bg-[var(--bench-recess)] px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[var(--ink-secondary)]">
+                <span className="truncate rounded bg-[var(--chassis-well)] px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[var(--ink-secondary)]">
                   {ch1Signal.portLabel}
                 </span>
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <button
-                  onClick={() => onToggleProbeMode('CH1')}
-                  className={`btn-tactile inline-flex items-center gap-1 rounded-[4px] border px-2 py-0.5 text-[11px] font-semibold cursor-pointer ${
+                  onClick={() => {
+                    benchAudio.click();
+                    onToggleProbeMode('CH1');
+                  }}
+                  className={`hw-key inline-flex items-center gap-1 rounded-[4px] border px-2 py-0.5 text-[11px] font-semibold cursor-pointer ${
                     probeAttachMode === 'CH1'
-                      ? 'border-amber-700 bg-amber-400 text-[#14171c]'
-                      : 'border-[var(--hairline-strong)] bg-[var(--bench-bg)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+                      ? 'border-amber-600 bg-amber-400 text-[#14171c]'
+                      : 'border-[var(--hairline-strong)] bg-[var(--sheet-surface)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
                   }`}
                 >
                   <Crosshair className="h-3 w-3" />
-                  {probeAttachMode === 'CH1' ? 'Select port' : 'Probe'}
+                  {probeAttachMode === 'CH1' ? 'Pick port' : 'Probe'}
                 </button>
                 <button
-                  onClick={() => onUpdateScope({ ch1Enabled: !scope.ch1Enabled })}
+                  onClick={() => {
+                    benchAudio.click();
+                    onUpdateScope({ ch1Enabled: !scope.ch1Enabled });
+                  }}
                   aria-label="Toggle Channel 1"
-                  className={`btn-tactile rounded-[4px] border px-1.5 py-0.5 font-mono text-[10px] font-bold cursor-pointer ${
+                  className={`hw-key rounded-[4px] border px-1.5 py-0.5 font-mono text-[10px] font-bold cursor-pointer ${
                     scope.ch1Enabled
-                      ? 'border-amber-600/40 bg-amber-500/15 text-amber-900'
-                      : 'border-[var(--hairline)] bg-[var(--bench-recess)] text-[var(--ink-muted)]'
+                      ? 'border-[var(--probe-ch1)]/45 bg-[var(--probe-ch1-soft)] text-[var(--probe-ch1-ink)]'
+                      : 'border-[var(--hairline)] bg-[var(--chassis-well)] text-[var(--ink-muted)]'
                   }`}
                 >
                   {scope.ch1Enabled ? 'ON' : 'OFF'}
@@ -473,106 +567,131 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 text-[11px]">
-              <div>
-                <div className="mb-1 flex justify-between text-[var(--ink-tertiary)]">
-                  <span>Volts/div</span>
-                  <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
-                    {scope.ch1Vdiv}V
-                  </span>
+            <div className="flex items-center gap-3 text-[11px]">
+              <RotaryEncoderDial
+                index={ch1VIdx}
+                totalSteps={VDIV_STEPS.length}
+                accentColor="#facc15"
+                title="CH1 Volts/Div rotary dial"
+                onStep={(d) => stepVdiv('ch1Vdiv', d)}
+              />
+              <div className="grid flex-1 grid-cols-2 gap-2">
+                <div>
+                  <div className="mb-1 flex justify-between text-[var(--ink-tertiary)]">
+                    <span>Volts/d</span>
+                    <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
+                      {scope.ch1Vdiv}V
+                    </span>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => stepVdiv('ch1Vdiv', -1)}
+                      aria-label="Decrease CH1 volts per division"
+                      className="hw-key flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] py-0.5 font-mono font-bold text-[var(--ink-primary)] cursor-pointer"
+                    >
+                      −
+                    </button>
+                    <button
+                      onClick={() => stepVdiv('ch1Vdiv', 1)}
+                      aria-label="Increase CH1 volts per division"
+                      className="hw-key flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] py-0.5 font-mono font-bold text-[var(--ink-primary)] cursor-pointer"
+                    >
+                      +
+                    </button>
+                    <button
+                      onClick={() => {
+                        benchAudio.click();
+                        onUpdateScope({
+                          ch1Coupling: scope.ch1Coupling === 'DC' ? 'AC' : 'DC',
+                        });
+                      }}
+                      className="hw-key rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--ink-secondary)] cursor-pointer"
+                    >
+                      {scope.ch1Coupling}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => stepVdiv('ch1Vdiv', -1)}
-                    aria-label="Decrease CH1 volts per division"
-                    className="btn-tactile flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] py-1 font-mono font-bold text-[var(--ink-primary)] hover:bg-[var(--bench-recess)] cursor-pointer"
-                  >
-                    −
-                  </button>
-                  <button
-                    onClick={() => stepVdiv('ch1Vdiv', 1)}
-                    aria-label="Increase CH1 volts per division"
-                    className="btn-tactile flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] py-1 font-mono font-bold text-[var(--ink-primary)] hover:bg-[var(--bench-recess)] cursor-pointer"
-                  >
-                    +
-                  </button>
-                  <button
-                    onClick={() =>
-                      onUpdateScope({
-                        ch1Coupling: scope.ch1Coupling === 'DC' ? 'AC' : 'DC',
-                      })
+                <div>
+                  <div className="mb-1 flex justify-between text-[var(--ink-tertiary)]">
+                    <span>Offset</span>
+                    <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
+                      {scope.ch1OffsetDiv >= 0 ? '+' : ''}
+                      {scope.ch1OffsetDiv.toFixed(1)}d
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    aria-label="CH1 vertical position"
+                    min={-3}
+                    max={3}
+                    step={0.2}
+                    value={scope.ch1OffsetDiv}
+                    onChange={(e) =>
+                      onUpdateScope({ ch1OffsetDiv: parseFloat(e.target.value) })
                     }
-                    className="btn-tactile rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] px-2 py-1 font-mono text-[10px] font-semibold text-[var(--ink-secondary)] hover:bg-[var(--bench-recess)] cursor-pointer"
-                  >
-                    {scope.ch1Coupling}
-                  </button>
+                    className="mt-1 w-full accent-amber-500 cursor-pointer"
+                  />
                 </div>
-              </div>
-              <div>
-                <div className="mb-1 flex justify-between text-[var(--ink-tertiary)]">
-                  <span>Vertical</span>
-                  <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
-                    {scope.ch1OffsetDiv >= 0 ? '+' : ''}
-                    {scope.ch1OffsetDiv.toFixed(1)}d
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  aria-label="CH1 vertical position"
-                  min={-3}
-                  max={3}
-                  step={0.2}
-                  value={scope.ch1OffsetDiv}
-                  onChange={(e) =>
-                    onUpdateScope({ ch1OffsetDiv: parseFloat(e.target.value) })
-                  }
-                  className="mt-1 w-full accent-amber-600 cursor-pointer"
-                />
               </div>
             </div>
           </div>
 
           {/* CH2 Hardware Pod (Cyan/Blue Channel) */}
-          <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--sheet-surface)] p-3">
+          <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--chassis-pod)] p-3">
             <div className="mb-2.5 flex items-center justify-between gap-1.5">
               <div className="flex items-center gap-2 min-w-0">
-                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500 ring-1 ring-sky-800/40" />
+                <span
+                  className={`jewel-led h-2.5 w-2.5 shrink-0 rounded-full ${
+                    scope.ch2Enabled
+                      ? 'bg-sky-400 text-sky-400'
+                      : 'bg-[var(--ink-muted)] text-transparent'
+                  }`}
+                />
                 <span className="font-mono text-xs font-bold text-[var(--ink-primary)]">
                   CH2
                 </span>
-                <span className="truncate rounded bg-[var(--bench-recess)] px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[var(--ink-secondary)]">
+                <span className="truncate rounded bg-[var(--chassis-well)] px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[var(--ink-secondary)]">
                   {ch2Signal.portLabel}
                 </span>
               </div>
               <div className="flex shrink-0 items-center gap-1">
                 <button
-                  onClick={() => onToggleProbeMode('CH2')}
-                  className={`btn-tactile inline-flex items-center gap-1 rounded-[4px] border px-2 py-0.5 text-[11px] font-semibold cursor-pointer ${
+                  onClick={() => {
+                    benchAudio.click();
+                    onToggleProbeMode('CH2');
+                  }}
+                  className={`hw-key inline-flex items-center gap-1 rounded-[4px] border px-2 py-0.5 text-[11px] font-semibold cursor-pointer ${
                     probeAttachMode === 'CH2'
-                      ? 'border-sky-700 bg-sky-400 text-[#14171c]'
-                      : 'border-[var(--hairline-strong)] bg-[var(--bench-bg)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
+                      ? 'border-sky-600 bg-sky-400 text-[#14171c]'
+                      : 'border-[var(--hairline-strong)] bg-[var(--sheet-surface)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
                   }`}
                 >
                   <Crosshair className="h-3 w-3" />
-                  {probeAttachMode === 'CH2' ? 'Select port' : 'Probe'}
+                  {probeAttachMode === 'CH2' ? 'Pick port' : 'Probe'}
                 </button>
                 {scope.ch2Port && (
                   <button
-                    onClick={() => onUpdateScope({ ch2Port: null })}
+                    onClick={() => {
+                      benchAudio.unplug();
+                      onUpdateScope({ ch2Port: null });
+                    }}
                     title="Detach CH2 Probe"
                     aria-label="Detach CH2 Probe"
-                    className="btn-tactile rounded-[4px] border border-[var(--hairline)] bg-[var(--bench-bg)] p-1 text-[var(--ink-tertiary)] hover:text-[var(--signal-fault)] cursor-pointer"
+                    className="hw-key rounded-[4px] border border-[var(--hairline)] bg-[var(--sheet-surface)] p-1 text-[var(--ink-tertiary)] hover:text-[var(--signal-fault)] cursor-pointer"
                   >
                     <Unplug className="h-3 w-3" />
                   </button>
                 )}
                 <button
-                  onClick={() => onUpdateScope({ ch2Enabled: !scope.ch2Enabled })}
+                  onClick={() => {
+                    benchAudio.click();
+                    onUpdateScope({ ch2Enabled: !scope.ch2Enabled });
+                  }}
                   aria-label="Toggle Channel 2"
-                  className={`btn-tactile rounded-[4px] border px-1.5 py-0.5 font-mono text-[10px] font-bold cursor-pointer ${
+                  className={`hw-key rounded-[4px] border px-1.5 py-0.5 font-mono text-[10px] font-bold cursor-pointer ${
                     scope.ch2Enabled
-                      ? 'border-sky-600/40 bg-sky-500/15 text-sky-900'
-                      : 'border-[var(--hairline)] bg-[var(--bench-recess)] text-[var(--ink-muted)]'
+                      ? 'border-[var(--probe-ch2)]/45 bg-[var(--probe-ch2-soft)] text-[var(--probe-ch2-ink)]'
+                      : 'border-[var(--hairline)] bg-[var(--chassis-well)] text-[var(--ink-muted)]'
                   }`}
                 >
                   {scope.ch2Enabled ? 'ON' : 'OFF'}
@@ -580,106 +699,129 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2.5 text-[11px]">
-              <div>
-                <div className="mb-1 flex justify-between text-[var(--ink-tertiary)]">
-                  <span>Volts/div</span>
-                  <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
-                    {scope.ch2Vdiv}V
-                  </span>
+            <div className="flex items-center gap-3 text-[11px]">
+              <RotaryEncoderDial
+                index={ch2VIdx}
+                totalSteps={VDIV_STEPS.length}
+                accentColor="#38bdf8"
+                title="CH2 Volts/Div rotary dial"
+                onStep={(d) => stepVdiv('ch2Vdiv', d)}
+              />
+              <div className="grid flex-1 grid-cols-2 gap-2">
+                <div>
+                  <div className="mb-1 flex justify-between text-[var(--ink-tertiary)]">
+                    <span>Volts/d</span>
+                    <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
+                      {scope.ch2Vdiv}V
+                    </span>
+                  </div>
+                  <div className="flex gap-1">
+                    <button
+                      onClick={() => stepVdiv('ch2Vdiv', -1)}
+                      aria-label="Decrease CH2 volts per division"
+                      className="hw-key flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] py-0.5 font-mono font-bold text-[var(--ink-primary)] cursor-pointer"
+                    >
+                      −
+                    </button>
+                    <button
+                      onClick={() => stepVdiv('ch2Vdiv', 1)}
+                      aria-label="Increase CH2 volts per division"
+                      className="hw-key flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] py-0.5 font-mono font-bold text-[var(--ink-primary)] cursor-pointer"
+                    >
+                      +
+                    </button>
+                    <button
+                      onClick={() => {
+                        benchAudio.click();
+                        onUpdateScope({
+                          ch2Coupling: scope.ch2Coupling === 'DC' ? 'AC' : 'DC',
+                        });
+                      }}
+                      className="hw-key rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] px-1.5 py-0.5 font-mono text-[10px] font-semibold text-[var(--ink-secondary)] cursor-pointer"
+                    >
+                      {scope.ch2Coupling}
+                    </button>
+                  </div>
                 </div>
-                <div className="flex gap-1">
-                  <button
-                    onClick={() => stepVdiv('ch2Vdiv', -1)}
-                    aria-label="Decrease CH2 volts per division"
-                    className="btn-tactile flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] py-1 font-mono font-bold text-[var(--ink-primary)] hover:bg-[var(--bench-recess)] cursor-pointer"
-                  >
-                    −
-                  </button>
-                  <button
-                    onClick={() => stepVdiv('ch2Vdiv', 1)}
-                    aria-label="Increase CH2 volts per division"
-                    className="btn-tactile flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] py-1 font-mono font-bold text-[var(--ink-primary)] hover:bg-[var(--bench-recess)] cursor-pointer"
-                  >
-                    +
-                  </button>
-                  <button
-                    onClick={() =>
-                      onUpdateScope({
-                        ch2Coupling: scope.ch2Coupling === 'DC' ? 'AC' : 'DC',
-                      })
+                <div>
+                  <div className="mb-1 flex justify-between text-[var(--ink-tertiary)]">
+                    <span>Offset</span>
+                    <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
+                      {scope.ch2OffsetDiv >= 0 ? '+' : ''}
+                      {scope.ch2OffsetDiv.toFixed(1)}d
+                    </span>
+                  </div>
+                  <input
+                    type="range"
+                    aria-label="CH2 vertical position"
+                    min={-3}
+                    max={3}
+                    step={0.2}
+                    value={scope.ch2OffsetDiv}
+                    onChange={(e) =>
+                      onUpdateScope({ ch2OffsetDiv: parseFloat(e.target.value) })
                     }
-                    className="btn-tactile rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] px-2 py-1 font-mono text-[10px] font-semibold text-[var(--ink-secondary)] hover:bg-[var(--bench-recess)] cursor-pointer"
-                  >
-                    {scope.ch2Coupling}
-                  </button>
+                    className="mt-1 w-full accent-sky-500 cursor-pointer"
+                  />
                 </div>
-              </div>
-              <div>
-                <div className="mb-1 flex justify-between text-[var(--ink-tertiary)]">
-                  <span>Vertical</span>
-                  <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
-                    {scope.ch2OffsetDiv >= 0 ? '+' : ''}
-                    {scope.ch2OffsetDiv.toFixed(1)}d
-                  </span>
-                </div>
-                <input
-                  type="range"
-                  aria-label="CH2 vertical position"
-                  min={-3}
-                  max={3}
-                  step={0.2}
-                  value={scope.ch2OffsetDiv}
-                  onChange={(e) =>
-                    onUpdateScope({ ch2OffsetDiv: parseFloat(e.target.value) })
-                  }
-                  className="mt-1 w-full accent-sky-600 cursor-pointer"
-                />
               </div>
             </div>
           </div>
 
-          {/* Horizontal Timebase Pod */}
-          <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--sheet-surface)] p-3 text-[11px]">
-            <div className="mb-1.5 flex items-baseline justify-between">
-              <span className="font-semibold text-[var(--ink-secondary)]">
-                Horizontal timebase
-              </span>
-              <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
-                {formatTimebase(scope.timebaseUs)}
-              </span>
-            </div>
-            <div className="flex items-center gap-1.5">
-              <button
-                onClick={() => stepTimebase(-1)}
-                aria-label="Zoom in timebase"
-                className="btn-tactile rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] px-2.5 py-1 font-mono font-bold text-[var(--ink-primary)] hover:bg-[var(--bench-recess)] cursor-pointer"
-                title="Zoom In (faster timebase)"
-              >
-                −
-              </button>
-              <select
-                aria-label="Timebase scale"
-                value={scope.timebaseUs}
-                onChange={(e) =>
-                  onUpdateScope({ timebaseUs: Number(e.target.value) })
-                }
-                className="flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] px-2 py-1 font-mono text-xs font-medium text-[var(--ink-primary)]"
-              >
-                {TIMEBASE_STEPS_US.map((us) => (
-                  <option key={us} value={us}>
-                    {formatTimebase(us)}
-                  </option>
-                ))}
-              </select>
-              <button
-                onClick={() => stepTimebase(1)}
-                aria-label="Zoom out timebase"
-                className="btn-tactile rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] px-2.5 py-1 font-mono font-bold text-[var(--ink-primary)] hover:bg-[var(--bench-recess)] cursor-pointer"
-                title="Zoom Out (slower timebase)"
-              >
-                +
-              </button>
+          {/* Horizontal Timebase Pod with Master Rotary Dial */}
+          <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--chassis-pod)] p-3 text-[11px]">
+            <div className="flex items-center gap-3">
+              <RotaryEncoderDial
+                index={tbIdx}
+                totalSteps={TIMEBASE_STEPS_US.length}
+                accentColor="#e2e8f0"
+                size={40}
+                title="Horizontal Timebase rotary dial"
+                onStep={stepTimebase}
+              />
+              <div className="flex-1 min-w-0">
+                <div className="mb-1.5 flex items-baseline justify-between">
+                  <span className="font-semibold text-[var(--ink-secondary)]">
+                    Horizontal timebase
+                  </span>
+                  <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
+                    {formatTimebase(scope.timebaseUs)}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <button
+                    onClick={() => stepTimebase(-1)}
+                    aria-label="Zoom in timebase"
+                    className="hw-key rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] px-2.5 py-1 font-mono font-bold text-[var(--ink-primary)] cursor-pointer"
+                    title="Zoom In (faster timebase)"
+                  >
+                    −
+                  </button>
+                  <select
+                    aria-label="Timebase scale"
+                    value={scope.timebaseUs}
+                    onChange={(e) => {
+                      benchAudio.tick();
+                      onUpdateScope({ timebaseUs: Number(e.target.value) });
+                    }}
+                    className="flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] px-2 py-1 font-mono text-xs font-medium text-[var(--ink-primary)]"
+                  >
+                    {TIMEBASE_STEPS_US.map((us) => (
+                      <option key={us} value={us}>
+                        {formatTimebase(us)}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => stepTimebase(1)}
+                    aria-label="Zoom out timebase"
+                    className="hw-key rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] px-2.5 py-1 font-mono font-bold text-[var(--ink-primary)] cursor-pointer"
+                    title="Zoom Out (slower timebase)"
+                  >
+                    +
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

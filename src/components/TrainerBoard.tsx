@@ -1,4 +1,5 @@
 import React, { useRef, useState } from 'react';
+import { motion } from 'motion/react';
 import {
   BlockDef,
   KnobDef,
@@ -632,8 +633,8 @@ export const TrainerBoard: React.FC<TrainerBoardProps> = ({
             <span
               className={`inline-flex items-center gap-2 rounded-[var(--radius-sm)] border px-2.5 py-1 font-medium ${
                 probeAttachMode === 'CH1'
-                  ? 'border-amber-600/35 bg-amber-500/12 text-amber-900'
-                  : 'border-sky-600/35 bg-sky-500/12 text-sky-900'
+                  ? 'border-[var(--probe-ch1)]/45 bg-[var(--probe-ch1-soft)] text-[var(--probe-ch1-ink)]'
+                  : 'border-[var(--probe-ch2)]/45 bg-[var(--probe-ch2-soft)] text-[var(--probe-ch2-ink)]'
               }`}
             >
               <span className="h-2 w-2 rounded-full bg-current" />
@@ -681,6 +682,11 @@ export const TrainerBoard: React.FC<TrainerBoardProps> = ({
               <stop offset="0%" stopColor="#3c424c" />
               <stop offset="100%" stopColor="#262a31" />
             </linearGradient>
+            <linearGradient id="pcbSheen" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stopColor="#ffffff" stopOpacity="0.065" />
+              <stop offset="45%" stopColor="#ffffff" stopOpacity="0.01" />
+              <stop offset="100%" stopColor="#000000" stopOpacity="0.08" />
+            </linearGradient>
             <radialGradient id="blueKnobGrad" cx="35%" cy="30%" r="70%">
               <stop offset="0%" stopColor="#60a5fa" />
               <stop offset="55%" stopColor="#2563eb" />
@@ -716,8 +722,19 @@ export const TrainerBoard: React.FC<TrainerBoardProps> = ({
             </pattern>
           </defs>
 
-          {/* Outer Molded Dark Gray Trainer Case */}
+          {/* Outer Molded Dark Gray Trainer Case + Machined Aluminum Chamfer Ring */}
           <rect x="2" y="2" width={VIEW_W - 4} height={VIEW_H - 4} rx="16" fill="url(#caseGrad)" stroke="#525a66" strokeWidth="2" />
+          <rect
+            x="9"
+            y="9"
+            width={VIEW_W - 18}
+            height={VIEW_H - 18}
+            rx="12"
+            fill="none"
+            stroke="#cbd5e1"
+            strokeOpacity="0.16"
+            strokeWidth="1"
+          />
 
           {/* Corner Case Screws */}
           {[
@@ -754,6 +771,15 @@ export const TrainerBoard: React.FC<TrainerBoardProps> = ({
             height={VIEW_H - 48}
             rx="6"
             fill="url(#pcbTraceGrid)"
+          />
+          <rect
+            x="20"
+            y="24"
+            width={VIEW_W - 40}
+            height={VIEW_H - 48}
+            rx="6"
+            fill="url(#pcbSheen)"
+            pointerEvents="none"
           />
 
           {/* Top Hardware Circuit Strip Divider */}
@@ -1174,17 +1200,37 @@ export const TrainerBoard: React.FC<TrainerBoardProps> = ({
                     strokeLinecap="round"
                     opacity="0.32"
                   />
+                  {/* Live electrical current pulse flowing through healthy active patch cords */}
+                  {!isExtra && !isHovered && (
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke="#93c5fd"
+                      strokeWidth="2.1"
+                      strokeDasharray="4 16"
+                      strokeLinecap="round"
+                      opacity="0.72"
+                      className="wire-signal-pulse"
+                      pointerEvents="none"
+                    />
+                  )}
 
-                  {/* Stackable Banana Plug Boots at both ends */}
+                  {/* Stackable Banana Plug Boots at both ends with physical plug-in spring */}
                   {[p1, p2].map((pt, endIdx) => (
                     <g key={endIdx} transform={`translate(${pt.x}, ${pt.y})`}>
-                      <circle
-                        r="7"
-                        fill={strokeCol}
-                        stroke="#0f172a"
-                        strokeWidth="1.5"
-                      />
-                      <circle r="2.6" fill="#0f172a" />
+                      <motion.g
+                        initial={{ scale: 1.25, opacity: 0.4 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ type: 'spring', stiffness: 520, damping: 24 }}
+                      >
+                        <circle
+                          r="7"
+                          fill={strokeCol}
+                          stroke="#0f172a"
+                          strokeWidth="1.5"
+                        />
+                        <circle r="2.6" fill="#0f172a" />
+                      </motion.g>
                     </g>
                   ))}
                 </g>
