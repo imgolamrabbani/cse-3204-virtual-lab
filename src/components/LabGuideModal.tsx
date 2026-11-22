@@ -7,8 +7,6 @@ import {
   Cable,
   CheckSquare,
   GraduationCap,
-  Lightbulb,
-  Sparkles,
   X,
 } from 'lucide-react';
 import { LabDefinition } from '../types/lab';
@@ -25,53 +23,48 @@ export const LabGuideModal: React.FC<LabGuideModalProps> = ({ lab, onClose }) =>
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 sm:p-5 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-label={lang === 'bn' ? bn.titleBn : lab.title}
+      className="animate-backdrop-fade fixed inset-0 z-50 flex items-center justify-center bg-[#14171c]/55 p-3 sm:p-6 backdrop-blur-[3px]"
       onClick={onClose}
     >
       <div
-        className="flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-700 bg-[#0d1524] shadow-2xl"
+        className="animate-sheet-enter flex max-h-[90vh] w-full max-w-4xl flex-col overflow-hidden rounded-[var(--radius-lg)] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] text-[var(--ink-primary)] shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Sticky Modal Header */}
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-800 bg-[#101a2d] px-5 py-4">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-              <BookOpen className="h-5 w-5" />
+        {/* Archival Datasheet Masthead */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--hairline)] bg-[var(--bench-bg)] px-6 py-4">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2 font-mono text-[11px] font-medium text-[var(--ink-tertiary)]">
+              <span>Lab 0{lab.labNumber}</span>
+              <span aria-hidden="true">/</span>
+              <span className="text-[var(--ink-secondary)]">{lab.modelName}</span>
             </div>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="font-mono text-xs font-bold text-emerald-400">
-                  LAB {lab.labNumber} · {lab.modelName}
-                </span>
-                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300 border border-amber-500/30">
-                  CSE 3204 Manual
-                </span>
-              </div>
-              <h2 className="font-bn mt-0.5 truncate text-base font-bold text-white">
-                {lang === 'bn' ? bn.titleBn : lab.title}
-              </h2>
-            </div>
+            <h2 className="font-bn mt-0.5 text-base font-bold tracking-[-0.015em] text-[var(--ink-primary)] sm:text-lg">
+              {lang === 'bn' ? bn.titleBn : lab.title}
+            </h2>
           </div>
 
-          <div className="flex items-center gap-2 shrink-0">
-            {/* Language Switcher: Bangla Default | English */}
-            <div className="inline-flex rounded-lg border border-slate-700 bg-slate-900 p-0.5 text-xs font-semibold">
+          <div className="flex shrink-0 items-center gap-2.5">
+            {/* Tactile Segmented Language Switcher */}
+            <div className="inline-flex rounded-[var(--radius-sm)] border border-[var(--hairline)] bg-[var(--bench-recess)] p-0.5 text-xs font-semibold">
               <button
                 onClick={() => setLang('bn')}
-                className={`font-bn rounded-md px-2.5 py-1 transition cursor-pointer ${
+                className={`btn-tactile font-bn rounded-[4px] px-3 py-1 cursor-pointer ${
                   lang === 'bn'
-                    ? 'bg-emerald-600 text-white shadow'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-[var(--sheet-surface)] text-[var(--ink-primary)] shadow-xs'
+                    : 'text-[var(--ink-tertiary)] hover:text-[var(--ink-primary)]'
                 }`}
               >
                 বাংলা
               </button>
               <button
                 onClick={() => setLang('en')}
-                className={`rounded-md px-2.5 py-1 transition cursor-pointer ${
+                className={`btn-tactile rounded-[4px] px-3 py-1 cursor-pointer ${
                   lang === 'en'
-                    ? 'bg-emerald-600 text-white shadow'
-                    : 'text-slate-400 hover:text-slate-200'
+                    ? 'bg-[var(--sheet-surface)] text-[var(--ink-primary)] shadow-xs'
+                    : 'text-[var(--ink-tertiary)] hover:text-[var(--ink-primary)]'
                 }`}
               >
                 English
@@ -80,107 +73,105 @@ export const LabGuideModal: React.FC<LabGuideModalProps> = ({ lab, onClose }) =>
 
             <button
               onClick={onClose}
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-800 hover:text-white cursor-pointer"
               aria-label="Close manual"
+              className="btn-tactile flex h-8 w-8 items-center justify-center rounded-[var(--radius-sm)] border border-[var(--hairline)] bg-[var(--sheet-surface)] text-[var(--ink-secondary)] hover:bg-[var(--bench-recess)] hover:text-[var(--ink-primary)] cursor-pointer"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </button>
           </div>
         </div>
 
-        {/* Scrollable Content */}
-        <div className="flex-1 overflow-y-auto px-5 py-5">
+        {/* Readable Technical Sheet Body */}
+        <div className="flex-1 overflow-y-auto px-6 py-6">
           {lang === 'bn' ? (
-            <div className="font-bn space-y-6 text-[14px] leading-relaxed text-slate-200">
+            <div className="font-bn space-y-7 text-[14.5px] leading-[1.7] text-[var(--ink-secondary)]">
               {/* 1. Full Objective & Big Picture */}
-              <section className="grid grid-cols-1 gap-3 md:grid-cols-2">
-                <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/[0.06] p-4">
-                  <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-bold tracking-wide text-emerald-400 uppercase">
-                    <Sparkles className="h-4 w-4" />
+              <section className="grid grid-cols-1 gap-4 md:grid-cols-2">
+                <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--bench-bg)]/60 p-4">
+                  <h3 className="mb-1.5 flex items-center gap-1.5 text-[13px] font-bold text-[var(--ink-primary)]">
+                    <BookOpen className="h-4 w-4 text-[var(--cord-cobalt)]" />
                     ১. এক্সপেরিমেন্টের পূর্ণ উদ্দেশ্য (Full Objective)
                   </h3>
-                  <p className="text-slate-200">{bn.fullObjective}</p>
+                  <p className="text-[var(--ink-secondary)]">{bn.fullObjective}</p>
                 </div>
 
-                <div className="rounded-xl border border-sky-500/30 bg-sky-500/[0.06] p-4">
-                  <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-bold tracking-wide text-sky-300 uppercase">
-                    <Lightbulb className="h-4 w-4" />
+                <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--bench-bg)]/60 p-4">
+                  <h3 className="mb-1.5 text-[13px] font-bold text-[var(--ink-primary)]">
                     সহজ ভাষায় পুরো ব্যাপারটা কী?
                   </h3>
-                  <p className="text-slate-200">{bn.bigPicture}</p>
+                  <p className="text-[var(--ink-secondary)]">{bn.bigPicture}</p>
                 </div>
               </section>
 
-              {/* 2. End-to-End Signal Flow Diagram */}
+              {/* 2. End-to-End Signal Flow */}
               <section>
-                <h3 className="mb-2.5 text-xs font-bold tracking-wide text-amber-400 uppercase">
+                <h3 className="mb-2.5 text-[13px] font-bold text-[var(--ink-primary)]">
                   ২. সম্পূর্ণ সিগন্যাল ফ্লো (ব্লক থেকে ব্লক)
                 </h3>
-                <div className="flex flex-wrap items-center gap-2 rounded-xl border border-slate-800 bg-slate-900/80 p-3.5">
+                <div className="flex flex-wrap items-center gap-2 rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--bench-bg)] p-3.5">
                   {bn.signalFlowSteps.map((node, idx) => (
                     <React.Fragment key={idx}>
-                      <span className="rounded-lg border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1.5 font-mono text-xs font-semibold text-emerald-200">
+                      <span className="rounded-[var(--radius-sm)] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] px-2.5 py-1 font-mono text-[11.5px] font-semibold text-[var(--ink-primary)]">
                         {node}
                       </span>
                       {idx < bn.signalFlowSteps.length - 1 && (
-                        <ArrowRight className="h-4 w-4 shrink-0 text-amber-400" />
+                        <ArrowRight className="h-3.5 w-3.5 shrink-0 text-[var(--cord-cobalt)]" />
                       )}
                     </React.Fragment>
                   ))}
                 </div>
               </section>
 
-              {/* 3. Wire-by-Wire Complete Flow Explanation */}
+              {/* 3. Wire-by-Wire Complete Flow Breakdown */}
               <section>
-                <div className="mb-3 flex items-center justify-between gap-2">
-                  <h3 className="flex items-center gap-1.5 text-xs font-bold tracking-wide text-emerald-400 uppercase">
-                    <Cable className="h-4 w-4" />
+                <div className="mb-3 flex items-baseline justify-between gap-2">
+                  <h3 className="flex items-center gap-1.5 text-[13px] font-bold text-[var(--ink-primary)]">
+                    <Cable className="h-4 w-4 text-[var(--cord-cobalt)]" />
                     ৩. প্রতিটি তারের সম্পূর্ণ ফ্লো — কেন ঢুকাচ্ছি ও ঢুকালে কী হচ্ছে?
                   </h3>
-                  <span className="rounded-full bg-slate-800 px-2.5 py-0.5 font-mono text-[11px] text-slate-300">
+                  <span className="font-mono text-[11px] font-medium tabular-nums text-[var(--ink-tertiary)]">
                     মোট {bn.wireFlow.length} ধাপ
                   </span>
                 </div>
 
-                <div className="space-y-3">
+                <div className="divide-y divide-[var(--hairline)] overflow-hidden rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--sheet-surface)]">
                   {bn.wireFlow.map((w) => (
-                    <div
-                      key={w.step}
-                      className="rounded-xl border border-slate-800 bg-slate-900/70 p-4 shadow-sm"
-                    >
-                      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-800/80 pb-2.5">
+                    <div key={w.step} className="p-4">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="flex items-center gap-2.5">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-amber-400 font-mono text-xs font-black text-slate-950">
+                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--ink-primary)] font-mono text-[11px] font-bold tabular-nums text-white">
                             {w.step}
                           </span>
-                          <span className="font-bold text-white">{w.title}</span>
+                          <span className="font-bold text-[var(--ink-primary)]">
+                            {w.title}
+                          </span>
                         </div>
-                        <span className="rounded-md border border-blue-500/40 bg-blue-500/15 px-2.5 py-0.5 font-mono text-[11px] font-bold text-blue-200">
+                        <span className="rounded-[var(--radius-sm)] border border-[var(--cord-cobalt)]/25 bg-[var(--cord-cobalt-soft)] px-2.5 py-0.5 font-mono text-[11px] font-semibold text-[var(--cord-cobalt)]">
                           {w.connection}
                         </span>
                       </div>
 
-                      <div className="mt-3 grid grid-cols-1 gap-2.5 md:grid-cols-3 text-[13px]">
-                        <div className="rounded-lg border border-sky-500/20 bg-sky-500/[0.05] p-2.5">
-                          <div className="mb-1 text-[11px] font-bold text-sky-300">
+                      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-3 text-[13.5px]">
+                        <div className="border-l-2 border-[var(--cord-cobalt)]/45 pl-3">
+                          <div className="mb-0.5 text-[11.5px] font-bold text-[var(--cord-cobalt)]">
                             কেন এই তার ঢুকাচ্ছি?
                           </div>
-                          <p className="text-slate-300">{w.why}</p>
+                          <p className="text-[var(--ink-secondary)]">{w.why}</p>
                         </div>
 
-                        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.05] p-2.5">
-                          <div className="mb-1 text-[11px] font-bold text-emerald-300">
+                        <div className="border-l-2 border-[var(--signal-pass)]/50 pl-3">
+                          <div className="mb-0.5 text-[11.5px] font-bold text-[var(--signal-pass)]">
                             ঢুকালে ভেতরে কী হচ্ছে?
                           </div>
-                          <p className="text-slate-300">{w.whatHappens}</p>
+                          <p className="text-[var(--ink-secondary)]">{w.whatHappens}</p>
                         </div>
 
-                        <div className="rounded-lg border border-rose-500/20 bg-rose-500/[0.05] p-2.5">
-                          <div className="mb-1 flex items-center gap-1 text-[11px] font-bold text-rose-300">
+                        <div className="border-l-2 border-[var(--signal-fault)]/45 pl-3">
+                          <div className="mb-0.5 flex items-center gap-1 text-[11.5px] font-bold text-[var(--signal-fault)]">
                             <AlertCircle className="h-3.5 w-3.5" />
                             না ঢুকালে কী হবে?
                           </div>
-                          <p className="text-slate-300">{w.ifMissing}</p>
+                          <p className="text-[var(--ink-secondary)]">{w.ifMissing}</p>
                         </div>
                       </div>
                     </div>
@@ -190,13 +181,13 @@ export const LabGuideModal: React.FC<LabGuideModalProps> = ({ lab, onClose }) =>
 
               {/* 4. Core Theory */}
               <section>
-                <h3 className="mb-2 text-xs font-bold tracking-wide text-emerald-400 uppercase">
+                <h3 className="mb-2 text-[13px] font-bold text-[var(--ink-primary)]">
                   ৪. মূল তত্ত্ব (Theory)
                 </h3>
-                <ul className="space-y-2 rounded-xl border border-slate-800 bg-slate-900/50 p-4">
+                <ul className="space-y-2 rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--bench-bg)]/50 p-4 text-[14px]">
                   {bn.theoryBn.map((item, i) => (
-                    <li key={i} className="flex items-start gap-2.5 text-[13.5px] text-slate-300">
-                      <span className="mt-1.5 h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" />
+                    <li key={i} className="flex items-start gap-2.5">
+                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--ink-tertiary)]" />
                       <span>{item}</span>
                     </li>
                   ))}
@@ -205,41 +196,43 @@ export const LabGuideModal: React.FC<LabGuideModalProps> = ({ lab, onClose }) =>
 
               {/* 5. Oscilloscope Observation Guide */}
               <section>
-                <h3 className="mb-2.5 flex items-center gap-1.5 text-xs font-bold tracking-wide text-yellow-400 uppercase">
-                  <Activity className="h-4 w-4" />
+                <h3 className="mb-2.5 flex items-center gap-1.5 text-[13px] font-bold text-[var(--ink-primary)]">
+                  <Activity className="h-4 w-4 text-[var(--probe-ch1)]" />
                   ৫. অসিলোস্কোপে কী দেখবে (Observation Guide)
                 </h3>
-                <div className="grid grid-cols-1 gap-2.5 md:grid-cols-3">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
                   {bn.scopeGuide.map((obs, i) => (
                     <div
                       key={i}
-                      className="rounded-xl border border-slate-800 bg-slate-900/70 p-3 text-[13px]"
+                      className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--bench-bg)]/55 p-3.5 text-[13.5px]"
                     >
-                      <div className="font-bold text-white">{obs.stage}</div>
+                      <div className="font-bold text-[var(--ink-primary)]">
+                        {obs.stage}
+                      </div>
                       <div className="mt-1.5 flex flex-wrap gap-1.5 font-mono text-[10.5px]">
-                        <span className="rounded bg-yellow-500/20 px-1.5 py-0.5 text-yellow-300">
+                        <span className="rounded bg-amber-500/15 px-1.5 py-0.5 font-semibold text-amber-800">
                           CH1: {obs.ch1}
                         </span>
-                        <span className="rounded bg-sky-500/20 px-1.5 py-0.5 text-sky-300">
+                        <span className="rounded bg-sky-600/15 px-1.5 py-0.5 font-semibold text-sky-800">
                           CH2: {obs.ch2}
                         </span>
                       </div>
-                      <p className="mt-2 text-slate-300">{obs.whatYouSee}</p>
+                      <p className="mt-2 text-[var(--ink-secondary)]">{obs.whatYouSee}</p>
                     </div>
                   ))}
                 </div>
               </section>
 
-              {/* 6. Viva & Lab Final Tips */}
+              {/* 6. Viva Notes */}
               <section>
-                <h3 className="mb-2 flex items-center gap-1.5 text-xs font-bold tracking-wide text-purple-300 uppercase">
-                  <GraduationCap className="h-4 w-4" />
+                <h3 className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-[var(--ink-primary)]">
+                  <GraduationCap className="h-4 w-4 text-[var(--cord-cobalt)]" />
                   ৬. ভাইভা ও ল্যাব ফাইনাল কুইক নোটস
                 </h3>
-                <div className="space-y-2 rounded-xl border border-purple-500/30 bg-purple-500/[0.06] p-4 text-[13.5px]">
+                <div className="space-y-2 rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--bench-bg)] p-4 text-[14px]">
                   {bn.vivaTips.map((tip, i) => (
-                    <p key={i} className="text-slate-200">
-                      • {tip}
+                    <p key={i} className="text-[var(--ink-primary)]">
+                      {i + 1}. {tip}
                     </p>
                   ))}
                 </div>
@@ -247,21 +240,21 @@ export const LabGuideModal: React.FC<LabGuideModalProps> = ({ lab, onClose }) =>
             </div>
           ) : (
             /* English Reference Tab */
-            <div className="space-y-5 text-sm leading-relaxed text-slate-300">
+            <div className="space-y-6 text-[14px] leading-relaxed text-[var(--ink-secondary)]">
               <section>
-                <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400">
+                <h3 className="mb-1.5 text-[13px] font-bold text-[var(--ink-primary)]">
                   1. Objective
                 </h3>
-                <p className="rounded-lg border border-slate-800 bg-slate-900/70 p-3">
+                <p className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--bench-bg)]/60 p-3.5">
                   {lab.objective}
                 </p>
               </section>
 
               <section>
-                <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400">
+                <h3 className="mb-1.5 text-[13px] font-bold text-[var(--ink-primary)]">
                   2. Key Theory
                 </h3>
-                <ul className="list-disc space-y-1.5 pl-5 text-slate-300">
+                <ul className="list-disc space-y-1.5 pl-5">
                   {lab.theory.map((item, i) => (
                     <li key={i}>{item}</li>
                   ))}
@@ -269,16 +262,16 @@ export const LabGuideModal: React.FC<LabGuideModalProps> = ({ lab, onClose }) =>
               </section>
 
               <section>
-                <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-emerald-400">
+                <h3 className="mb-2 text-[13px] font-bold text-[var(--ink-primary)]">
                   3. Experimental Wiring &amp; Observation Procedure
                 </h3>
                 <ol className="space-y-2">
                   {lab.procedureSteps.map((step, i) => (
                     <li
                       key={i}
-                      className="flex items-start gap-2.5 rounded-lg border border-slate-800/80 bg-slate-900/50 p-2.5 text-xs"
+                      className="flex items-start gap-2.5 rounded-[var(--radius-sm)] border border-[var(--hairline)] bg-[var(--bench-bg)]/50 p-3 text-[13px]"
                     >
-                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-emerald-500/20 font-mono text-[11px] font-bold text-emerald-300">
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--ink-primary)] font-mono text-[10.5px] font-bold tabular-nums text-white">
                         {i + 1}
                       </span>
                       <span>{step}</span>
@@ -288,17 +281,19 @@ export const LabGuideModal: React.FC<LabGuideModalProps> = ({ lab, onClose }) =>
               </section>
 
               <section>
-                <h3 className="mb-1.5 flex items-center gap-1.5 text-xs font-bold uppercase tracking-wider text-amber-400">
-                  <CheckSquare className="h-3.5 w-3.5" />
+                <h3 className="mb-2 flex items-center gap-1.5 text-[13px] font-bold text-[var(--ink-primary)]">
+                  <CheckSquare className="h-4 w-4 text-[var(--cord-cobalt)]" />
                   Required Patch Cord Checklist ({lab.wireRules.length} wires)
                 </h3>
-                <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                   {lab.wireRules.map((rule, idx) => (
                     <div
                       key={rule.id}
-                      className="rounded-md border border-slate-800 bg-slate-950/70 px-2.5 py-1.5 font-mono text-[11px] text-slate-200"
+                      className="rounded-[var(--radius-sm)] border border-[var(--hairline)] bg-[var(--bench-bg)] px-3 py-2 font-mono text-[11.5px] text-[var(--ink-primary)]"
                     >
-                      <span className="mr-1.5 text-amber-400">{idx + 1}.</span>
+                      <span className="mr-2 font-bold text-[var(--cord-cobalt)]">
+                        {idx + 1}.
+                      </span>
                       {rule.label}
                     </div>
                   ))}

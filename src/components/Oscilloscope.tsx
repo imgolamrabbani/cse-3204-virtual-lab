@@ -1,6 +1,5 @@
 import React, { useEffect, useRef } from 'react';
 import {
-  Activity,
   Crosshair,
   Pause,
   Play,
@@ -47,7 +46,6 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const phaseRef = useRef<number>(0);
 
-  // Store latest props in ref for smooth 60fps canvas animation loop without recreating RAF
   const stateRef = useRef({ scope, ch1Signal, ch2Signal });
   stateRef.current = { scope, ch1Signal, ch2Signal };
 
@@ -79,14 +77,11 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
           ctx.save();
           ctx.scale(dpr, dpr);
 
-          // 1. Deep CRT / Rohde & Schwarz LCD Dark Background
-          const bgGrad = ctx.createLinearGradient(0, 0, 0, cssH);
-          bgGrad.addColorStop(0, '#070b12');
-          bgGrad.addColorStop(1, '#0b1220');
-          ctx.fillStyle = bgGrad;
+          // 1. Deep CRT / Rohde & Schwarz LCD Dark Glass
+          ctx.fillStyle = '#090d13';
           ctx.fillRect(0, 0, cssW, cssH);
 
-          // 2. Graticule (10 horizontal divs × 8 vertical divs)
+          // 2. Precision 10×8 Graticule
           const padL = 6;
           const padR = 6;
           const padT = 24;
@@ -113,14 +108,12 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
           }
           ctx.stroke();
 
-          // Center axes with fine 0.2-div ticks
           ctx.strokeStyle = 'rgba(148, 163, 184, 0.36)';
           ctx.beginPath();
           ctx.moveTo(padL, midY);
           ctx.lineTo(padL + gw, midY);
           ctx.moveTo(midX, padT);
           ctx.lineTo(midX, padT + gh);
-          // Sub-ticks
           for (let i = 0; i <= cols * 5; i++) {
             const x = padL + (i * gw) / (cols * 5);
             ctx.moveTo(x, midY - 2.5);
@@ -133,15 +126,13 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
           }
           ctx.stroke();
 
-          // Subtle live trigger jitter for analog realism
           const microDrift = sc.running ? Math.sin(phaseRef.current * 4.5) * 1.2e-7 : 0;
           const totalTimeSec = (sc.timebaseUs * 1e-6) * cols;
 
-          // Compute rising-edge trigger offset on trigger source so periodic waves lock cleanly
+          // Rising-edge trigger lock
           const trigSig = sc.triggerSource === 'CH1' ? s1 : s2;
           let tStart = microDrift;
           if (trigSig.isConnected && trigSig.freqHz > 0) {
-            // Find rising edge near t=0 within 1 period
             const searchSpan = Math.min(totalTimeSec, 1 / Math.max(50, trigSig.freqHz));
             const steps = 120;
             const dtSearch = searchSpan / steps;
@@ -157,7 +148,6 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
             }
           }
 
-          // Helper to render one trace with high-frequency envelope oversampling
           const renderTrace = (
             sig: ChannelSampleInfo,
             vdiv: number,
@@ -170,7 +160,6 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
             const pxPerDivY = gh / rows;
             const zeroY = midY - offsetDiv * pxPerDivY;
 
-            // Left channel ground marker arrow
             ctx.fillStyle = color;
             ctx.beginPath();
             ctx.moveTo(padL, zeroY);
@@ -179,7 +168,6 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
             ctx.closePath();
             ctx.fill();
 
-            // Estimate DC mean if AC coupling is selected
             let dcMean = 0;
             if (coupling === 'AC' && sig.isConnected) {
               const nMean = 64;
@@ -189,15 +177,12 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
               dcMean /= nMean;
             }
 
-            // Clip to graticule area
             ctx.save();
             ctx.beginPath();
             ctx.rect(padL, padT, gw, gh);
             ctx.clip();
 
             const numCols = Math.floor(gw);
-            // Determine sub-samples per pixel column:
-            // High-frequency carriers (e.g. AM/FM/FDM) get 10 sub-samples/px to render solid RF envelope!
             const estimatedCycles = Math.max(sig.freqHz, 100000) * totalTimeSec;
             const isHighFreq =
               sig.signalName.includes('AM ') ||
@@ -215,7 +200,7 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
 
             ctx.strokeStyle = color;
             ctx.shadowColor = glowColor;
-            ctx.shadowBlur = 6;
+            ctx.shadowBlur = 5;
             ctx.lineWidth = sig.isDigital ? 2.0 : 1.7;
             ctx.lineJoin = 'round';
 
@@ -249,9 +234,8 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
             ctx.stroke();
             ctx.restore();
 
-            // Subtle tag on left edge
             ctx.fillStyle = color;
-            ctx.font = '700 9px "JetBrains Mono", monospace';
+            ctx.font = '700 9px "IBM Plex Mono", monospace';
             ctx.fillText(tag, padL + 10, zeroY + 3);
           };
 
@@ -278,47 +262,43 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
             );
           }
 
-          // 3. Top Oscilloscope Status Bar (Rohde & Schwarz RTC1002 style!)
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+          // Top CRT HUD Bar
+          ctx.fillStyle = 'rgba(13, 18, 26, 0.94)';
           ctx.fillRect(0, 0, cssW, padT - 1);
-          ctx.strokeStyle = 'rgba(71, 85, 105, 0.5)';
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
           ctx.beginPath();
           ctx.moveTo(0, padT - 1);
           ctx.lineTo(cssW, padT - 1);
           ctx.stroke();
 
-          ctx.font = '600 10.5px "JetBrains Mono", monospace';
+          ctx.font = '600 10.5px "IBM Plex Mono", monospace';
           ctx.fillStyle = '#e2e8f0';
-          ctx.fillText(`TB: ${formatTimebase(sc.timebaseUs)}`, 10, 15);
+          ctx.fillText(`TB ${formatTimebase(sc.timebaseUs)}`, 10, 15);
 
           ctx.fillStyle = sc.running ? '#4ade80' : '#f87171';
-          ctx.fillText(sc.running ? '● RUN' : '❚❚ STOP', 132, 15);
+          ctx.fillText(sc.running ? 'RUN' : 'STOP', 132, 15);
 
           ctx.fillStyle = '#facc15';
           ctx.fillText(
-            `CH1: ${sc.ch1Vdiv}V/d ${sc.ch1Coupling}  f=${formatFreq(s1.freqHz)}  Vpp=${s1.vpp.toFixed(1)}V`,
-            205,
+            `CH1 ${sc.ch1Vdiv}V/d ${sc.ch1Coupling}  f=${formatFreq(s1.freqHz)}  Vpp=${s1.vpp.toFixed(1)}V`,
+            188,
             15
           );
 
-          // 4. Bottom Status Bar (CH2 Readout)
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.92)';
+          // Bottom CRT HUD Bar
+          ctx.fillStyle = 'rgba(13, 18, 26, 0.94)';
           ctx.fillRect(0, cssH - padB + 1, cssW, padB);
-          ctx.strokeStyle = 'rgba(71, 85, 105, 0.5)';
+          ctx.strokeStyle = 'rgba(148, 163, 184, 0.25)';
           ctx.beginPath();
           ctx.moveTo(0, cssH - padB + 1);
           ctx.lineTo(cssW, cssH - padB + 1);
           ctx.stroke();
 
           ctx.fillStyle = '#facc15';
-          ctx.fillText(
-            `CH1 [${s1.portLabel}]: ${s1.signalName}`,
-            10,
-            cssH - 7
-          );
+          ctx.fillText(`CH1 [${s1.portLabel}] ${s1.signalName}`, 10, cssH - 7);
 
           ctx.fillStyle = '#38bdf8';
-          const ch2Text = `CH2 [${s2.portLabel}]: ${sc.ch2Vdiv}V/d  f=${formatFreq(s2.freqHz)}`;
+          const ch2Text = `CH2 [${s2.portLabel}] ${sc.ch2Vdiv}V/d  f=${formatFreq(s2.freqHz)}`;
           ctx.fillText(ch2Text, Math.max(330, cssW - 265), cssH - 7);
 
           ctx.restore();
@@ -347,43 +327,39 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
   };
 
   return (
-    <div className="rounded-xl border border-slate-700/80 bg-[#121824] p-3 shadow-2xl">
-      {/* Scope Bezel Header */}
-      <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
-        <div className="flex items-center gap-2">
-          <div className="flex h-7 w-7 items-center justify-center rounded-md bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            <Activity className="h-4 w-4" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="text-xs font-bold tracking-wider text-slate-200 uppercase">
-                RTC1002 Dual-Channel Digital Oscilloscope
-              </span>
-              <span className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-emerald-400 border border-slate-700">
-                LIVE DSP
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400">
-              Attach CH1 (Yellow) &amp; CH2 (Blue) probes to any trainer terminal or pick a preset stage
-            </p>
-          </div>
+    <section
+      aria-label="Dual-channel digital oscilloscope"
+      className="scope-chassis-shadow rounded-[var(--radius-lg)] bg-[var(--chassis-bezel)] p-3.5 sm:p-4"
+    >
+      {/* Rohde & Schwarz RTC1002 Anodized Instrument Faceplate Header */}
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2 border-b border-[var(--hairline)] pb-2.5">
+        <div className="flex flex-wrap items-baseline gap-2.5">
+          <span className="font-mono text-xs font-bold tracking-[0.04em] text-[var(--ink-primary)]">
+            ROHDE &amp; SCHWARZ
+          </span>
+          <span className="font-mono text-xs font-semibold text-[var(--cord-cobalt)]">
+            RTC1002
+          </span>
+          <span className="text-xs text-[var(--ink-tertiary)]">
+            Dual-Channel Digital Oscilloscope
+          </span>
         </div>
 
         <div className="flex items-center gap-1.5">
           <button
             onClick={onAutoset}
-            className="inline-flex items-center gap-1 rounded-md border border-emerald-500/40 bg-emerald-500/15 px-2.5 py-1 text-xs font-semibold text-emerald-300 transition hover:bg-emerald-500/25 cursor-pointer"
+            className="btn-tactile inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] px-2.5 py-1 text-xs font-semibold text-[var(--ink-primary)] hover:bg-white cursor-pointer"
             title="Auto-scale Timebase and Volts/Div to fit probed signals"
           >
-            <Sparkles className="h-3.5 w-3.5" />
+            <Sparkles className="h-3.5 w-3.5 text-[var(--cord-cobalt)]" />
             Autoset
           </button>
           <button
             onClick={() => onUpdateScope({ running: !scope.running })}
-            className={`inline-flex items-center gap-1 rounded-md border px-2.5 py-1 text-xs font-semibold transition cursor-pointer ${
+            className={`btn-tactile inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border px-2.5 py-1 text-xs font-semibold cursor-pointer ${
               scope.running
-                ? 'border-amber-500/40 bg-amber-500/15 text-amber-300 hover:bg-amber-500/25'
-                : 'border-emerald-500/40 bg-emerald-500/15 text-emerald-300 hover:bg-emerald-500/25'
+                ? 'border-[var(--signal-pass)]/35 bg-[var(--signal-pass-soft)] text-[var(--signal-pass)] hover:bg-emerald-600/15'
+                : 'border-[var(--signal-fault)]/35 bg-[var(--signal-fault-soft)] text-[var(--signal-fault)] hover:bg-rose-600/15'
             }`}
           >
             {scope.running ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
@@ -392,37 +368,39 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
         </div>
       </div>
 
-      {/* Main Split: Canvas Screen + Hardware Control Deck */}
-      <div className="grid grid-cols-1 gap-3 xl:grid-cols-12">
-        {/* HTML5 Canvas CRT Display */}
-        <div className="xl:col-span-8 flex flex-col gap-2">
-          <div className="relative overflow-hidden rounded-lg border-2 border-slate-700 bg-black shadow-inner">
+      {/* Main Split: Recessed Dark CRT Glass + Anodized Physical Control Pods */}
+      <div className="grid grid-cols-1 gap-3.5 xl:grid-cols-12">
+        {/* Left 8 cols: Recessed CRT Display + Stage Probe Bar */}
+        <div className="flex flex-col gap-2.5 xl:col-span-8">
+          <div className="relative overflow-hidden rounded-[var(--radius-md)] border-[3px] border-[#262b33] bg-[var(--crt-glass)] shadow-[inset_0_2px_10px_rgba(0,0,0,0.85)]">
             <canvas
               ref={canvasRef}
-              className="block h-[270px] w-full sm:h-[295px]"
+              className="block h-[270px] w-full sm:h-[296px]"
             />
           </div>
 
-          {/* Warnings if probed node is missing upstream wiring */}
+          {/* Actionable inline probe warnings */}
           {(ch1Signal.warning || ch2Signal.warning) && (
-            <div className="flex flex-wrap gap-2 text-[11px]">
+            <div className="flex flex-wrap gap-2 text-xs">
               {ch1Signal.warning && (
-                <div className="rounded-md border border-yellow-500/35 bg-yellow-500/10 px-2.5 py-1 text-yellow-200">
-                  <strong>CH1 ({ch1Signal.portLabel}):</strong> {ch1Signal.warning}
+                <div className="rounded-[var(--radius-sm)] border border-amber-600/30 bg-amber-500/10 px-2.5 py-1 text-amber-950">
+                  <strong className="font-mono">CH1 ({ch1Signal.portLabel}):</strong>{' '}
+                  {ch1Signal.warning}
                 </div>
               )}
               {ch2Signal.warning && (
-                <div className="rounded-md border border-sky-500/35 bg-sky-500/10 px-2.5 py-1 text-sky-200">
-                  <strong>CH2 ({ch2Signal.portLabel}):</strong> {ch2Signal.warning}
+                <div className="rounded-[var(--radius-sm)] border border-sky-700/30 bg-sky-500/10 px-2.5 py-1 text-sky-950">
+                  <strong className="font-mono">CH2 ({ch2Signal.portLabel}):</strong>{' '}
+                  {ch2Signal.warning}
                 </div>
               )}
             </div>
           )}
 
-          {/* Quick Observation Stage Presets (matches Lab Manual figures!) */}
-          <div className="flex flex-wrap items-center gap-1.5">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mr-1">
-              Quick Probe Stages:
+          {/* Quick Observation Stage Buttons (recessed hardware button strip) */}
+          <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
+            <span className="mr-1 text-[11.5px] font-medium text-[var(--ink-tertiary)]">
+              Probe stage:
             </span>
             {lab.probePresets.map((preset) => {
               const isActive =
@@ -442,10 +420,10 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
                     })
                   }
                   title={preset.description}
-                  className={`rounded-md border px-2 py-1 text-[11px] font-medium transition cursor-pointer ${
+                  className={`btn-tactile rounded-[var(--radius-sm)] border px-2.5 py-1 text-[11.5px] font-medium cursor-pointer ${
                     isActive
-                      ? 'border-emerald-400/60 bg-emerald-500/20 text-emerald-200'
-                      : 'border-slate-700 bg-slate-800/70 text-slate-300 hover:border-slate-500 hover:bg-slate-800'
+                      ? 'border-[var(--ink-primary)] bg-[var(--ink-primary)] text-white'
+                      : 'border-[var(--hairline-strong)] bg-[var(--sheet-surface)] text-[var(--ink-secondary)] hover:bg-white hover:text-[var(--ink-primary)]'
                   }`}
                 >
                   {preset.label}
@@ -455,36 +433,39 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
           </div>
         </div>
 
-        {/* Right Side Hardware Control Deck (CH1, CH2, Horizontal Timebase) */}
-        <div className="xl:col-span-4 flex flex-col justify-between gap-2.5">
-          {/* CH1 Controls (Yellow) */}
-          <div className="rounded-lg border border-yellow-500/30 bg-yellow-500/[0.04] p-2.5">
-            <div className="mb-2 flex items-center justify-between gap-1">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-yellow-400" />
-                <span className="text-xs font-bold text-yellow-300">CH1</span>
-                <span className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-yellow-200">
+        {/* Right 4 cols: Physical Channel Pods & Horizontal Timebase */}
+        <div className="flex flex-col justify-between gap-2.5 xl:col-span-4">
+          {/* CH1 Hardware Pod (Yellow Channel) */}
+          <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--sheet-surface)] p-3">
+            <div className="mb-2.5 flex items-center justify-between gap-1.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-amber-400 ring-1 ring-amber-700/40" />
+                <span className="font-mono text-xs font-bold text-[var(--ink-primary)]">
+                  CH1
+                </span>
+                <span className="truncate rounded bg-[var(--bench-recess)] px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[var(--ink-secondary)]">
                   {ch1Signal.portLabel}
                 </span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1">
                 <button
                   onClick={() => onToggleProbeMode('CH1')}
-                  className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold transition cursor-pointer ${
+                  className={`btn-tactile inline-flex items-center gap-1 rounded-[4px] border px-2 py-0.5 text-[11px] font-semibold cursor-pointer ${
                     probeAttachMode === 'CH1'
-                      ? 'bg-yellow-400 text-slate-950'
-                      : 'bg-yellow-500/20 text-yellow-300 hover:bg-yellow-500/30'
+                      ? 'border-amber-700 bg-amber-400 text-[#14171c]'
+                      : 'border-[var(--hairline-strong)] bg-[var(--bench-bg)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
                   }`}
                 >
                   <Crosshair className="h-3 w-3" />
-                  {probeAttachMode === 'CH1' ? 'Pick Port...' : 'Move Probe'}
+                  {probeAttachMode === 'CH1' ? 'Select port' : 'Probe'}
                 </button>
                 <button
                   onClick={() => onUpdateScope({ ch1Enabled: !scope.ch1Enabled })}
-                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold cursor-pointer ${
+                  aria-label="Toggle Channel 1"
+                  className={`btn-tactile rounded-[4px] border px-1.5 py-0.5 font-mono text-[10px] font-bold cursor-pointer ${
                     scope.ch1Enabled
-                      ? 'bg-yellow-400/20 text-yellow-300'
-                      : 'bg-slate-800 text-slate-500'
+                      ? 'border-amber-600/40 bg-amber-500/15 text-amber-900'
+                      : 'border-[var(--hairline)] bg-[var(--bench-recess)] text-[var(--ink-muted)]'
                   }`}
                 >
                   {scope.ch1Enabled ? 'ON' : 'OFF'}
@@ -492,22 +473,26 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div className="grid grid-cols-2 gap-2.5 text-[11px]">
               <div>
-                <div className="mb-1 flex justify-between text-slate-400">
-                  <span>Volts/Div</span>
-                  <span className="font-mono text-yellow-200">{scope.ch1Vdiv}V</span>
+                <div className="mb-1 flex justify-between text-[var(--ink-tertiary)]">
+                  <span>Volts/div</span>
+                  <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
+                    {scope.ch1Vdiv}V
+                  </span>
                 </div>
                 <div className="flex gap-1">
                   <button
                     onClick={() => stepVdiv('ch1Vdiv', -1)}
-                    className="flex-1 rounded bg-slate-800 py-1 font-mono font-bold text-slate-200 hover:bg-slate-700 cursor-pointer"
+                    aria-label="Decrease CH1 volts per division"
+                    className="btn-tactile flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] py-1 font-mono font-bold text-[var(--ink-primary)] hover:bg-[var(--bench-recess)] cursor-pointer"
                   >
                     −
                   </button>
                   <button
                     onClick={() => stepVdiv('ch1Vdiv', 1)}
-                    className="flex-1 rounded bg-slate-800 py-1 font-mono font-bold text-slate-200 hover:bg-slate-700 cursor-pointer"
+                    aria-label="Increase CH1 volts per division"
+                    className="btn-tactile flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] py-1 font-mono font-bold text-[var(--ink-primary)] hover:bg-[var(--bench-recess)] cursor-pointer"
                   >
                     +
                   </button>
@@ -517,22 +502,23 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
                         ch1Coupling: scope.ch1Coupling === 'DC' ? 'AC' : 'DC',
                       })
                     }
-                    className="rounded bg-slate-800 px-2 py-1 font-mono text-[10px] text-yellow-300 hover:bg-slate-700 cursor-pointer"
+                    className="btn-tactile rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] px-2 py-1 font-mono text-[10px] font-semibold text-[var(--ink-secondary)] hover:bg-[var(--bench-recess)] cursor-pointer"
                   >
                     {scope.ch1Coupling}
                   </button>
                 </div>
               </div>
               <div>
-                <div className="mb-1 flex justify-between text-slate-400">
-                  <span>Position</span>
-                  <span className="font-mono text-yellow-200">
+                <div className="mb-1 flex justify-between text-[var(--ink-tertiary)]">
+                  <span>Vertical</span>
+                  <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
                     {scope.ch1OffsetDiv >= 0 ? '+' : ''}
                     {scope.ch1OffsetDiv.toFixed(1)}d
                   </span>
                 </div>
                 <input
                   type="range"
+                  aria-label="CH1 vertical position"
                   min={-3}
                   max={3}
                   step={0.2}
@@ -540,49 +526,53 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
                   onChange={(e) =>
                     onUpdateScope({ ch1OffsetDiv: parseFloat(e.target.value) })
                   }
-                  className="w-full accent-yellow-400 cursor-pointer"
+                  className="mt-1 w-full accent-amber-600 cursor-pointer"
                 />
               </div>
             </div>
           </div>
 
-          {/* CH2 Controls (Blue) */}
-          <div className="rounded-lg border border-sky-500/30 bg-sky-500/[0.04] p-2.5">
-            <div className="mb-2 flex items-center justify-between gap-1">
-              <div className="flex items-center gap-1.5">
-                <span className="h-2.5 w-2.5 rounded-full bg-sky-400" />
-                <span className="text-xs font-bold text-sky-300">CH2</span>
-                <span className="rounded bg-slate-800 px-1.5 py-0.5 font-mono text-[10px] text-sky-200">
+          {/* CH2 Hardware Pod (Cyan/Blue Channel) */}
+          <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--sheet-surface)] p-3">
+            <div className="mb-2.5 flex items-center justify-between gap-1.5">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-sky-500 ring-1 ring-sky-800/40" />
+                <span className="font-mono text-xs font-bold text-[var(--ink-primary)]">
+                  CH2
+                </span>
+                <span className="truncate rounded bg-[var(--bench-recess)] px-1.5 py-0.5 font-mono text-[10.5px] font-medium text-[var(--ink-secondary)]">
                   {ch2Signal.portLabel}
                 </span>
               </div>
-              <div className="flex items-center gap-1">
+              <div className="flex shrink-0 items-center gap-1">
                 <button
                   onClick={() => onToggleProbeMode('CH2')}
-                  className={`inline-flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-semibold transition cursor-pointer ${
+                  className={`btn-tactile inline-flex items-center gap-1 rounded-[4px] border px-2 py-0.5 text-[11px] font-semibold cursor-pointer ${
                     probeAttachMode === 'CH2'
-                      ? 'bg-sky-400 text-slate-950'
-                      : 'bg-sky-500/20 text-sky-300 hover:bg-sky-500/30'
+                      ? 'border-sky-700 bg-sky-400 text-[#14171c]'
+                      : 'border-[var(--hairline-strong)] bg-[var(--bench-bg)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
                   }`}
                 >
                   <Crosshair className="h-3 w-3" />
-                  {probeAttachMode === 'CH2' ? 'Pick Port...' : 'Move Probe'}
+                  {probeAttachMode === 'CH2' ? 'Select port' : 'Probe'}
                 </button>
                 {scope.ch2Port && (
                   <button
                     onClick={() => onUpdateScope({ ch2Port: null })}
                     title="Detach CH2 Probe"
-                    className="rounded bg-slate-800 p-1 text-slate-400 hover:text-red-300 cursor-pointer"
+                    aria-label="Detach CH2 Probe"
+                    className="btn-tactile rounded-[4px] border border-[var(--hairline)] bg-[var(--bench-bg)] p-1 text-[var(--ink-tertiary)] hover:text-[var(--signal-fault)] cursor-pointer"
                   >
                     <Unplug className="h-3 w-3" />
                   </button>
                 )}
                 <button
                   onClick={() => onUpdateScope({ ch2Enabled: !scope.ch2Enabled })}
-                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold cursor-pointer ${
+                  aria-label="Toggle Channel 2"
+                  className={`btn-tactile rounded-[4px] border px-1.5 py-0.5 font-mono text-[10px] font-bold cursor-pointer ${
                     scope.ch2Enabled
-                      ? 'bg-sky-400/20 text-sky-300'
-                      : 'bg-slate-800 text-slate-500'
+                      ? 'border-sky-600/40 bg-sky-500/15 text-sky-900'
+                      : 'border-[var(--hairline)] bg-[var(--bench-recess)] text-[var(--ink-muted)]'
                   }`}
                 >
                   {scope.ch2Enabled ? 'ON' : 'OFF'}
@@ -590,22 +580,26 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
+            <div className="grid grid-cols-2 gap-2.5 text-[11px]">
               <div>
-                <div className="mb-1 flex justify-between text-slate-400">
-                  <span>Volts/Div</span>
-                  <span className="font-mono text-sky-200">{scope.ch2Vdiv}V</span>
+                <div className="mb-1 flex justify-between text-[var(--ink-tertiary)]">
+                  <span>Volts/div</span>
+                  <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
+                    {scope.ch2Vdiv}V
+                  </span>
                 </div>
                 <div className="flex gap-1">
                   <button
                     onClick={() => stepVdiv('ch2Vdiv', -1)}
-                    className="flex-1 rounded bg-slate-800 py-1 font-mono font-bold text-slate-200 hover:bg-slate-700 cursor-pointer"
+                    aria-label="Decrease CH2 volts per division"
+                    className="btn-tactile flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] py-1 font-mono font-bold text-[var(--ink-primary)] hover:bg-[var(--bench-recess)] cursor-pointer"
                   >
                     −
                   </button>
                   <button
                     onClick={() => stepVdiv('ch2Vdiv', 1)}
-                    className="flex-1 rounded bg-slate-800 py-1 font-mono font-bold text-slate-200 hover:bg-slate-700 cursor-pointer"
+                    aria-label="Increase CH2 volts per division"
+                    className="btn-tactile flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] py-1 font-mono font-bold text-[var(--ink-primary)] hover:bg-[var(--bench-recess)] cursor-pointer"
                   >
                     +
                   </button>
@@ -615,22 +609,23 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
                         ch2Coupling: scope.ch2Coupling === 'DC' ? 'AC' : 'DC',
                       })
                     }
-                    className="rounded bg-slate-800 px-2 py-1 font-mono text-[10px] text-sky-300 hover:bg-slate-700 cursor-pointer"
+                    className="btn-tactile rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] px-2 py-1 font-mono text-[10px] font-semibold text-[var(--ink-secondary)] hover:bg-[var(--bench-recess)] cursor-pointer"
                   >
                     {scope.ch2Coupling}
                   </button>
                 </div>
               </div>
               <div>
-                <div className="mb-1 flex justify-between text-slate-400">
-                  <span>Position</span>
-                  <span className="font-mono text-sky-200">
+                <div className="mb-1 flex justify-between text-[var(--ink-tertiary)]">
+                  <span>Vertical</span>
+                  <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
                     {scope.ch2OffsetDiv >= 0 ? '+' : ''}
                     {scope.ch2OffsetDiv.toFixed(1)}d
                   </span>
                 </div>
                 <input
                   type="range"
+                  aria-label="CH2 vertical position"
                   min={-3}
                   max={3}
                   step={0.2}
@@ -638,36 +633,38 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
                   onChange={(e) =>
                     onUpdateScope({ ch2OffsetDiv: parseFloat(e.target.value) })
                   }
-                  className="w-full accent-sky-400 cursor-pointer"
+                  className="mt-1 w-full accent-sky-600 cursor-pointer"
                 />
               </div>
             </div>
           </div>
 
-          {/* Horizontal Timebase Control */}
-          <div className="rounded-lg border border-slate-700 bg-slate-900/80 p-2.5 text-[11px]">
-            <div className="mb-1.5 flex items-center justify-between">
-              <span className="font-bold uppercase tracking-wider text-slate-300">
-                Horizontal Timebase
+          {/* Horizontal Timebase Pod */}
+          <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--sheet-surface)] p-3 text-[11px]">
+            <div className="mb-1.5 flex items-baseline justify-between">
+              <span className="font-semibold text-[var(--ink-secondary)]">
+                Horizontal timebase
               </span>
-              <span className="font-mono font-semibold text-emerald-300">
+              <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
                 {formatTimebase(scope.timebaseUs)}
               </span>
             </div>
             <div className="flex items-center gap-1.5">
               <button
                 onClick={() => stepTimebase(-1)}
-                className="rounded bg-slate-800 px-2.5 py-1 font-mono font-bold text-slate-200 hover:bg-slate-700 cursor-pointer"
+                aria-label="Zoom in timebase"
+                className="btn-tactile rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] px-2.5 py-1 font-mono font-bold text-[var(--ink-primary)] hover:bg-[var(--bench-recess)] cursor-pointer"
                 title="Zoom In (faster timebase)"
               >
                 −
               </button>
               <select
+                aria-label="Timebase scale"
                 value={scope.timebaseUs}
                 onChange={(e) =>
                   onUpdateScope({ timebaseUs: Number(e.target.value) })
                 }
-                className="flex-1 rounded border border-slate-700 bg-slate-950 px-2 py-1 font-mono text-xs text-slate-100 outline-none focus:border-emerald-500"
+                className="flex-1 rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] px-2 py-1 font-mono text-xs font-medium text-[var(--ink-primary)]"
               >
                 {TIMEBASE_STEPS_US.map((us) => (
                   <option key={us} value={us}>
@@ -677,7 +674,8 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
               </select>
               <button
                 onClick={() => stepTimebase(1)}
-                className="rounded bg-slate-800 px-2.5 py-1 font-mono font-bold text-slate-200 hover:bg-slate-700 cursor-pointer"
+                aria-label="Zoom out timebase"
+                className="btn-tactile rounded-[4px] border border-[var(--hairline-strong)] bg-[var(--bench-bg)] px-2.5 py-1 font-mono font-bold text-[var(--ink-primary)] hover:bg-[var(--bench-recess)] cursor-pointer"
                 title="Zoom Out (slower timebase)"
               >
                 +
@@ -686,6 +684,6 @@ export const Oscilloscope: React.FC<OscilloscopeProps> = ({
           </div>
         </div>
       </div>
-    </div>
+    </section>
   );
 };

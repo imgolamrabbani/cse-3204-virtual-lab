@@ -625,41 +625,43 @@ export const TrainerBoard: React.FC<TrainerBoardProps> = ({
 
   return (
     <div className="relative w-full select-none">
-      {/* Contextual Status Ribbon above PCB */}
-      <div className="mb-2 flex flex-wrap items-center justify-between gap-2 text-xs">
+      {/* Quiet Benchtop Status Caption above Trainer Box */}
+      <div className="mb-2 flex min-h-[28px] flex-wrap items-center justify-between gap-2 text-xs">
         <div className="flex items-center gap-2">
           {probeAttachMode ? (
             <span
-              className={`inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1 font-semibold ${
+              className={`inline-flex items-center gap-2 rounded-[var(--radius-sm)] border px-2.5 py-1 font-medium ${
                 probeAttachMode === 'CH1'
-                  ? 'border-yellow-400/60 bg-yellow-500/15 text-yellow-300'
-                  : 'border-sky-400/60 bg-sky-500/15 text-sky-300'
+                  ? 'border-amber-600/35 bg-amber-500/12 text-amber-900'
+                  : 'border-sky-600/35 bg-sky-500/12 text-sky-900'
               }`}
             >
-              <span className="h-2 w-2 animate-pulse rounded-full bg-current" />
-              Click any terminal on the trainer box to attach {probeAttachMode} Probe
+              <span className="h-2 w-2 rounded-full bg-current" />
+              Click any terminal on the trainer board to attach {probeAttachMode} probe
             </span>
           ) : selectedPortObj ? (
-            <span className="inline-flex items-center gap-1.5 rounded-md border border-blue-400/60 bg-blue-500/15 px-2.5 py-1 font-medium text-blue-200">
-              <span className="h-2 w-2 animate-ping rounded-full bg-blue-400" />
-              Wiring from <strong className="font-mono text-white">{selectedPortObj.label}</strong> — click destination socket (or click empty area to cancel)
+            <span className="inline-flex items-center gap-2 rounded-[var(--radius-sm)] border border-[var(--cord-cobalt)]/35 bg-[var(--cord-cobalt-soft)] px-2.5 py-1 font-medium text-[var(--cord-cobalt)]">
+              Patching from <strong className="font-mono font-bold">{selectedPortObj.label}</strong> — click destination socket (or empty bench to cancel)
             </span>
           ) : (
-            <span className="text-slate-400">
-              Click any socket to patch a wire · Click a cord to unplug · Drag knobs to adjust
+            <span className="text-[var(--ink-tertiary)]">
+              Click any socket to route a patch cord, click a cord to unplug, or drag knobs vertically to tune
             </span>
           )}
         </div>
 
         {hoveredPortObj && (
-          <div className="rounded bg-slate-800/90 px-2.5 py-1 font-mono text-[11px] text-emerald-300 border border-slate-700">
-            {hoveredPortObj.label}: <span className="text-slate-300 font-sans">{hoveredPortObj.description}</span>
+          <div className="rounded-[var(--radius-sm)] border border-[var(--hairline)] bg-[var(--sheet-surface)] px-2.5 py-1 text-[11.5px] text-[var(--ink-secondary)]">
+            <span className="font-mono font-semibold text-[var(--ink-primary)]">
+              {hoveredPortObj.label}
+            </span>{' '}
+            — {hoveredPortObj.description}
           </div>
         )}
       </div>
 
-      {/* Interactive Physical Trainer Enclosure SVG */}
-      <div className="relative overflow-hidden rounded-xl border border-slate-700/80 bg-[#1c2128] shadow-2xl">
+      {/* Physical Benchtop Trainer Unit (Resting on Warm Desk Surface) */}
+      <div className="hardware-unit-shadow relative overflow-hidden rounded-[16px] bg-[#22262c]">
         <svg
           ref={svgRef}
           viewBox={`0 0 ${VIEW_W} ${VIEW_H}`}

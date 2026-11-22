@@ -24,7 +24,7 @@ import { TrainerBoard } from './components/TrainerBoard';
 import { Oscilloscope } from './components/Oscilloscope';
 import { LabGuideModal } from './components/LabGuideModal';
 
-// Authentic blue lab patch cord shades (just like the lab videos!)
+// Authentic cobalt-blue lab patch cord palette matching the physical RUET lab cords
 const WIRE_PALETTE = [
   '#2563eb',
   '#1d4ed8',
@@ -130,7 +130,6 @@ export default function App() {
     return counts;
   }, [wiresByLab]);
 
-  // Evaluate live signals at CH1 & CH2 from actual wire graph + knobs + switches
   const ch1Signal = useMemo(
     () => evaluatePortSignal(lab, scope.ch1Port, wires, { knobs, switches }),
     [lab, scope.ch1Port, wires, knobs, switches]
@@ -151,7 +150,6 @@ export default function App() {
   const handleAddWire = (from: string, to: string) => {
     setWiresByLab((prev) => {
       const existing = prev[activeLabId];
-      // Prevent duplicate exact wire between the same two sockets
       const dup = existing.some(
         (w) =>
           (w.from === from && w.to === to) || (w.from === to && w.to === from)
@@ -196,7 +194,6 @@ export default function App() {
     if (!mode) return;
     setSubModeByLab((prev) => ({ ...prev, [activeLabId]: modeId }));
     setCheckResult(null);
-    // Point CH1 to the selected modulation output so students see the live waveform immediately
     handleUpdateScope({
       ch1Port: mode.defaultCh1Port,
       ch2Port: mode.defaultCh2Port,
@@ -259,7 +256,6 @@ export default function App() {
     const activeFreq = Math.max(ch1Signal.freqHz, ch2Signal.freqHz);
     let idealTbUs = lab.defaultTimebaseUs;
     if (activeFreq > 0) {
-      // Aim for ~3-4 cycles across the 10 horizontal divisions
       const periodUs = 1e6 / activeFreq;
       const targetUsPerDiv = (periodUs * 3.5) / 10;
       const steps = [5, 10, 25, 50, 100, 200, 250, 500, 1000, 2000, 5000];
@@ -286,8 +282,8 @@ export default function App() {
   };
 
   return (
-    <div className="flex min-h-screen flex-col bg-[#0b1018] text-slate-100 lg:flex-row">
-      {/* Left Lab Switcher Sidebar */}
+    <div className="flex min-h-dvh flex-col bg-[var(--bench-bg)] text-[var(--ink-primary)] lg:flex-row">
+      {/* Unified-Canvas Sidebar */}
       <Sidebar
         labs={LABS}
         activeLabId={activeLabId}
@@ -296,62 +292,68 @@ export default function App() {
         onSelectLab={handleSelectLab}
       />
 
-      {/* Main Bench Content Area */}
-      <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6">
-        <div className="mx-auto max-w-6xl space-y-4">
-          {/* Experiment Header & Practice Action Toolbar */}
-          <header className="flex flex-col justify-between gap-3 rounded-xl border border-slate-800 bg-[#101826] p-4 shadow-lg xl:flex-row xl:items-center">
+      {/* Main Architectural Workbench */}
+      <main className="flex-1 overflow-y-auto px-4 py-5 sm:px-7">
+        <div className="mx-auto max-w-[1080px] space-y-5">
+          {/* Hairline-Separated Benchtop Header (No Boxed SaaS Card) */}
+          <header className="flex flex-col justify-between gap-3.5 border-b border-[var(--hairline)] pb-4 xl:flex-row xl:items-end">
             <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="rounded-md bg-emerald-500/20 px-2 py-0.5 font-mono text-xs font-bold text-emerald-300 border border-emerald-500/30">
-                  LAB {lab.labNumber}
+              <div className="flex flex-wrap items-center gap-2 font-mono text-[11.5px] text-[var(--ink-tertiary)]">
+                <span className="font-semibold text-[var(--cord-cobalt)]">
+                  Lab 0{lab.labNumber}
                 </span>
-                <span className="rounded-md bg-amber-500/15 px-2 py-0.5 font-mono text-xs font-semibold text-amber-300 border border-amber-500/30">
-                  {lab.modelName}
-                </span>
-                <span className="rounded-md bg-slate-800 px-2 py-0.5 font-mono text-xs text-slate-300">
-                  {wires.length} / {activeWireRules.length} wires
+                <span aria-hidden="true">/</span>
+                <span className="text-[var(--ink-secondary)]">{lab.modelName}</span>
+                <span aria-hidden="true">/</span>
+                <span className="tabular-nums text-[var(--ink-secondary)]">
+                  {wires.length} of {activeWireRules.length} cords connected
                 </span>
               </div>
-              <h2 className="mt-1.5 text-lg font-bold tracking-tight text-white">
+
+              <h2 className="mt-1 text-[20px] font-bold tracking-[-0.025em] text-[var(--ink-primary)] sm:text-[22px]">
                 {lab.title}
               </h2>
 
-              {/* Sub-mode selector (e.g., PAM / PWM / PPM on TCM 001-02) */}
+              {/* Tactile Segmented Hardware Mode Switch (Lab 3: PAM / PWM / PPM) */}
               {lab.subModes && activeSubMode && (
-                <div className="mt-2 flex flex-wrap items-center gap-1.5">
-                  <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400 mr-1">
-                    Modulation Mode:
-                  </span>
-                  {lab.subModes.map((mode) => {
-                    const isSelected = mode.id === activeSubMode.id;
-                    return (
-                      <button
-                        key={mode.id}
-                        onClick={() => handleSelectSubMode(mode.id)}
-                        title={mode.shortDesc}
-                        className={`rounded-md border px-2.5 py-0.5 font-mono text-xs font-bold transition cursor-pointer ${
-                          isSelected
-                            ? 'border-emerald-400 bg-emerald-500/20 text-emerald-200 shadow-sm'
-                            : 'border-slate-700 bg-slate-900/80 text-slate-400 hover:border-slate-500 hover:text-slate-200'
-                        }`}
-                      >
-                        {mode.label}
-                      </button>
-                    );
-                  })}
-                  <span className="text-[11px] text-slate-400 ml-1 hidden sm:inline">
-                    — {activeSubMode.shortDesc}
+                <div className="mt-2.5 flex flex-wrap items-center gap-2.5">
+                  <div
+                    role="tablist"
+                    aria-label="Modulation mode"
+                    className="inline-flex rounded-[var(--radius-sm)] border border-[var(--hairline)] bg-[var(--bench-recess)] p-0.5"
+                  >
+                    {lab.subModes.map((mode) => {
+                      const isSelected = mode.id === activeSubMode.id;
+                      return (
+                        <button
+                          key={mode.id}
+                          role="tab"
+                          aria-selected={isSelected}
+                          onClick={() => handleSelectSubMode(mode.id)}
+                          title={mode.shortDesc}
+                          className={`btn-tactile rounded-[4px] px-3 py-1 font-mono text-xs font-semibold cursor-pointer ${
+                            isSelected
+                              ? 'bg-[var(--sheet-surface)] text-[var(--ink-primary)] shadow-[0_1px_2px_rgba(20,23,28,0.12)]'
+                              : 'text-[var(--ink-tertiary)] hover:text-[var(--ink-primary)]'
+                          }`}
+                        >
+                          {mode.label.replace(' Mode', '')}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <span className="text-xs text-[var(--ink-tertiary)]">
+                    {activeSubMode.shortDesc}
                   </span>
                 </div>
               )}
             </div>
 
-            {/* Required Practice Buttons */}
-            <div className="flex flex-wrap items-center gap-2 shrink-0">
+            {/* Bench Action Controls */}
+            <div className="flex shrink-0 flex-wrap items-center gap-2">
               <button
                 onClick={handleCheckWiring}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-md shadow-emerald-950/50 transition hover:bg-emerald-500 cursor-pointer"
+                className="btn-tactile inline-flex items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-sm)] bg-[var(--cord-cobalt)] px-3.5 py-2 text-xs font-semibold text-white shadow-[0_1px_2px_rgba(29,78,216,0.3)] hover:bg-[var(--cord-cobalt-hover)] cursor-pointer"
               >
                 <Zap className="h-3.5 w-3.5" />
                 Check Wiring
@@ -359,7 +361,7 @@ export default function App() {
 
               <button
                 onClick={handleResetWires}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-slate-700 bg-slate-800/90 px-2.5 py-2 text-xs font-semibold text-slate-200 transition hover:border-rose-500/50 hover:bg-rose-500/15 hover:text-rose-200 cursor-pointer"
+                className="btn-tactile inline-flex items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] px-3 py-2 text-xs font-semibold text-[var(--ink-secondary)] hover:border-[var(--signal-fault)]/45 hover:text-[var(--signal-fault)] cursor-pointer"
               >
                 <RotateCcw className="h-3.5 w-3.5" />
                 Reset Wires
@@ -367,10 +369,10 @@ export default function App() {
 
               <button
                 onClick={() => setShowHints((prev) => !prev)}
-                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border px-2.5 py-2 text-xs font-semibold transition cursor-pointer ${
+                className={`btn-tactile inline-flex items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-sm)] border px-3 py-2 text-xs font-semibold cursor-pointer ${
                   showHints
-                    ? 'border-amber-400/70 bg-amber-500/20 text-amber-200'
-                    : 'border-slate-700 bg-slate-800/90 text-slate-200 hover:border-amber-500/50 hover:text-amber-200'
+                    ? 'border-[var(--signal-warn)]/50 bg-[var(--signal-warn-soft)] text-[var(--signal-warn)]'
+                    : 'border-[var(--hairline-strong)] bg-[var(--sheet-surface)] text-[var(--ink-secondary)] hover:text-[var(--ink-primary)]'
                 }`}
               >
                 {showHints ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
@@ -379,46 +381,47 @@ export default function App() {
 
               <button
                 onClick={() => setShowGuide(true)}
-                className="font-bn inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg border border-emerald-500/40 bg-emerald-500/10 px-2.5 py-2 text-xs font-semibold text-emerald-200 transition hover:border-emerald-400 hover:bg-emerald-500/20 hover:text-white cursor-pointer"
+                className="btn-tactile font-bn inline-flex items-center gap-1.5 whitespace-nowrap rounded-[var(--radius-sm)] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] px-3 py-2 text-xs font-semibold text-[var(--ink-primary)] hover:bg-white cursor-pointer"
               >
-                <BookOpen className="h-3.5 w-3.5" />
+                <BookOpen className="h-3.5 w-3.5 text-[var(--cord-cobalt)]" />
                 ল্যাব ম্যানুয়াল (বাংলা)
               </button>
             </div>
           </header>
 
-          {/* Wiring Check Result Panel */}
+          {/* Wiring Check Result Strip */}
           {checkResult && (
             <div
-              className={`rounded-xl border p-3.5 text-xs shadow-lg ${
+              role="status"
+              className={`animate-sheet-enter rounded-[var(--radius-md)] border px-4 py-3 text-xs ${
                 checkResult.isComplete
-                  ? 'border-emerald-500/50 bg-emerald-500/10 text-emerald-100'
-                  : 'border-amber-500/50 bg-amber-500/10 text-amber-100'
+                  ? 'border-[var(--signal-pass)]/35 bg-[var(--signal-pass-soft)] text-[#14532d]'
+                  : 'border-[var(--signal-warn)]/40 bg-[var(--signal-warn-soft)] text-[#78350f]'
               }`}
             >
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="flex items-center gap-2 font-bold text-sm">
+                <div className="flex items-center gap-2 text-[13px] font-semibold">
                   {checkResult.isComplete ? (
-                    <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+                    <CheckCircle2 className="h-4 w-4 text-[var(--signal-pass)]" />
                   ) : (
-                    <AlertTriangle className="h-5 w-5 text-amber-400" />
+                    <AlertTriangle className="h-4 w-4 text-[var(--signal-warn)]" />
                   )}
                   <span>{checkResult.summary}</span>
                 </div>
-                <span className="rounded-full bg-slate-950/60 px-2.5 py-0.5 font-mono font-bold">
-                  Score: {checkResult.scorePercent}%
+                <span className="font-mono text-xs font-bold tabular-nums">
+                  {checkResult.scorePercent}%
                 </span>
               </div>
 
               {!checkResult.isComplete && (
-                <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+                <div className="mt-3 grid grid-cols-1 gap-3 border-t border-amber-800/15 pt-2.5 md:grid-cols-2">
                   {checkResult.missing.length > 0 && (
-                    <div className="rounded-lg border border-rose-500/30 bg-slate-950/50 p-2.5">
-                      <div className="mb-1.5 flex items-center gap-1.5 font-bold text-rose-300">
+                    <div>
+                      <div className="mb-1 flex items-center gap-1.5 font-semibold text-[var(--signal-fault)]">
                         <XCircle className="h-3.5 w-3.5" />
-                        Missing Connections ({checkResult.missing.length})
+                        Missing connections ({checkResult.missing.length})
                       </div>
-                      <ul className="space-y-1 font-mono text-[11px] text-slate-300">
+                      <ul className="space-y-1 font-mono text-[11px] text-[var(--ink-secondary)]">
                         {checkResult.missing.map((m) => (
                           <li key={m.ruleId}>• {m.label}</li>
                         ))}
@@ -427,15 +430,15 @@ export default function App() {
                   )}
 
                   {checkResult.extra.length > 0 && (
-                    <div className="rounded-lg border border-orange-500/30 bg-slate-950/50 p-2.5">
-                      <div className="mb-1.5 flex items-center gap-1.5 font-bold text-orange-300">
+                    <div>
+                      <div className="mb-1 flex items-center gap-1.5 font-semibold text-[var(--signal-warn)]">
                         <AlertTriangle className="h-3.5 w-3.5" />
-                        Unexpected / Shorted Wires ({checkResult.extra.length})
+                        Unexpected or shorted wires ({checkResult.extra.length})
                       </div>
-                      <ul className="space-y-1 font-mono text-[11px] text-slate-300">
+                      <ul className="space-y-1 font-mono text-[11px] text-[var(--ink-secondary)]">
                         {checkResult.extra.map((ex) => (
                           <li key={ex.wireId}>
-                            • {ex.fromLabel} ↔ {ex.toLabel} (click orange wire to remove)
+                            • {ex.fromLabel} ↔ {ex.toLabel} (click orange wire to unplug)
                           </li>
                         ))}
                       </ul>
@@ -446,40 +449,39 @@ export default function App() {
             </div>
           )}
 
-          {/* Hint / Correct Wiring Step-by-Step Checklist Drawer */}
+          {/* Reference Wiring Hint Drawer */}
           {showHints && (
-            <div className="rounded-xl border border-amber-500/40 bg-amber-500/[0.06] p-3.5 text-xs">
-              <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-                <div className="font-bold text-amber-300">
-                  Correct Wiring Reference ({lab.modelName}{activeSubMode ? ` — ${activeSubMode.label}` : ''}) — Dashed numbered guides shown on PCB
+            <div className="animate-sheet-enter rounded-[var(--radius-md)] border border-[var(--hairline-strong)] bg-[var(--sheet-surface)] p-3.5 text-xs">
+              <div className="mb-2.5 flex flex-wrap items-center justify-between gap-2">
+                <div className="font-semibold text-[var(--ink-primary)]">
+                  Wiring guide — {lab.modelName}
+                  {activeSubMode ? ` (${activeSubMode.label})` : ''}
                 </div>
                 <button
                   onClick={handleApplyCorrectWiring}
-                  className="inline-flex items-center gap-1.5 rounded-md border border-amber-400/60 bg-amber-500/20 px-2.5 py-1 text-[11px] font-bold text-amber-200 transition hover:bg-amber-500/30 cursor-pointer"
+                  className="btn-tactile inline-flex items-center gap-1.5 rounded-[var(--radius-sm)] border border-[var(--cord-cobalt)]/35 bg-[var(--cord-cobalt-soft)] px-2.5 py-1 text-[11px] font-semibold text-[var(--cord-cobalt)] hover:bg-blue-600/15 cursor-pointer"
                 >
                   <Wand2 className="h-3.5 w-3.5" />
-                  Auto-Wire {activeSubMode ? activeSubMode.label : 'Correct Setup'}
+                  Auto-wire {activeSubMode ? activeSubMode.label : 'setup'}
                 </button>
               </div>
-              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                 {activeWireRules.map((rule, idx) => (
                   <div
                     key={rule.id}
-                    className="flex items-center gap-2 rounded-md border border-slate-800 bg-slate-950/70 px-2.5 py-1.5 font-mono text-[11px] text-slate-200"
+                    className="flex items-start gap-2 rounded-[var(--radius-sm)] border border-[var(--hairline)] bg-[var(--bench-bg)] px-2.5 py-1.5 font-mono text-[11px] leading-snug text-[var(--ink-primary)]"
                   >
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-400 text-[10px] font-black text-slate-950">
+                    <span className="mt-0.5 flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold tabular-nums text-white">
                       {idx + 1}
                     </span>
-                    <span className="truncate" title={rule.label}>
-                      {rule.label}
-                    </span>
+                    <span>{rule.label}</span>
                   </div>
                 ))}
               </div>
             </div>
           )}
 
-          {/* Interactive SVG Hardware Trainer Box */}
+          {/* Hero Focal Artifact #1: Physical Green PCB Trainer Kit */}
           <TrainerBoard
             lab={lab}
             activeWireRules={activeWireRules}
@@ -498,7 +500,7 @@ export default function App() {
             onAttachProbe={handleAttachProbe}
           />
 
-          {/* Live Dual-Channel HTML5 Canvas Oscilloscope */}
+          {/* Hero Focal Artifact #2: Rohde & Schwarz RTC1002 Dual-Channel Oscilloscope */}
           <Oscilloscope
             lab={lab}
             scope={scope}
@@ -512,7 +514,7 @@ export default function App() {
         </div>
       </main>
 
-      {/* Lab Manual Reference Modal */}
+      {/* Archival Datasheet Lab Manual Modal */}
       {showGuide && <LabGuideModal lab={lab} onClose={() => setShowGuide(false)} />}
     </div>
   );

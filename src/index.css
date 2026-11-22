@@ -1,41 +1,167 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   CSE 3204 Virtual Lab — Precision Benchtop Instrument Design System
+   Grounded in physical hardware: warm drafting-bench stone, Rohde & Schwarz
+   anodized chassis, cobalt lab patch cords, and dark CRT phosphor glass.
+   ========================================================================== */
+:root {
+  /* Physical bench & instrument surfaces */
+  --bench-bg: #f3f1eb;
+  --bench-recess: #e8e5dc;
+  --sheet-surface: #fbfaf7;
+  --chassis-bezel: #e5e2d9;
+  --chassis-well: #dad6cb;
+  --crt-glass: #0a0e14;
+
+  /* Four-tier ink hierarchy */
+  --ink-primary: #14171c;
+  --ink-secondary: #3f4650;
+  --ink-tertiary: #636b76;
+  --ink-muted: #8a929c;
+
+  /* Hairline structural borders */
+  --hairline: rgba(20, 23, 28, 0.11);
+  --hairline-strong: rgba(20, 23, 28, 0.22);
+  --hairline-inset: rgba(255, 255, 255, 0.65);
+
+  /* Signal & electrical accents (60/30/10 restraint — cobalt leads) */
+  --cord-cobalt: #1d4ed8;
+  --cord-cobalt-hover: #1e40af;
+  --cord-cobalt-soft: rgba(29, 78, 216, 0.09);
+  --signal-pass: #15803d;
+  --signal-pass-soft: rgba(21, 128, 61, 0.09);
+  --signal-warn: #b45309;
+  --signal-warn-soft: rgba(180, 83, 9, 0.1);
+  --signal-fault: #be123c;
+  --signal-fault-soft: rgba(190, 18, 60, 0.08);
+  --probe-ch1: #b45309;
+  --probe-ch1-crt: #facc15;
+  --probe-ch2: #0369a1;
+  --probe-ch2-crt: #38bdf8;
+
+  /* Typography */
+  --font-sans: 'IBM Plex Sans', 'Hind Siliguri', -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-bn: 'Hind Siliguri', 'IBM Plex Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* Emil Kowalski motion tokens */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1);
+  --dur-press: 130ms;
+  --dur-ui: 180ms;
+  --dur-modal: 220ms;
+
+  /* Concentric radii */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+}
+
 @layer base {
+  html,
   body {
-    font-family: 'Inter', 'Hind Siliguri', -apple-system, BlinkMacSystemFont, sans-serif;
-    background-color: #0b1018;
-    color: #e2e8f0;
-    overflow-x: hidden;
+    overflow-x: clip;
+    background-color: var(--bench-bg);
+    color: var(--ink-primary);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  code,
+  pre,
+  .font-mono {
+    font-family: var(--font-mono);
   }
 
   .font-bn {
-    font-family: 'Hind Siliguri', 'Inter', sans-serif;
+    font-family: var(--font-bn);
   }
 
-  code, pre, .font-mono {
-    font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+  .tabular-nums {
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Instant accessible keyboard focus ring across every interactive control */
+  button:focus-visible,
+  select:focus-visible,
+  input:focus-visible,
+  [tabindex]:focus-visible {
+    outline: 2px solid var(--cord-cobalt);
+    outline-offset: 2px;
   }
 }
 
-/* Custom subtle scrollbars for dark lab UI */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
+/* Tactile hardware button feel — compositor-only transform + opacity */
+.btn-tactile {
+  transition:
+    transform var(--dur-press) var(--ease-out),
+    background-color var(--dur-ui) var(--ease-out),
+    border-color var(--dur-ui) var(--ease-out),
+    color var(--dur-ui) var(--ease-out);
 }
 
-::-webkit-scrollbar-track {
-  background: #0f172a;
+.btn-tactile:active:not(:disabled) {
+  transform: scale(0.97);
 }
 
-::-webkit-scrollbar-thumb {
-  background: #334155;
-  border-radius: 3px;
+/* Bench contact shadow for physical hardware sitting on the workbench */
+.hardware-unit-shadow {
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.7) inset,
+    0 14px 30px -14px rgba(20, 23, 28, 0.34),
+    0 3px 8px -2px rgba(20, 23, 28, 0.16);
 }
 
-::-webkit-scrollbar-thumb:hover {
-  background: #475569;
+.scope-chassis-shadow {
+  box-shadow:
+    0 1px 0 0 rgba(255, 255, 255, 0.85) inset,
+    0 0 0 1px rgba(20, 23, 28, 0.14),
+    0 12px 26px -14px rgba(20, 23, 28, 0.24);
 }
 
+/* Modal & validation panel deliberate entrance (never scale(0)) */
+@keyframes sheetEnter {
+  from {
+    opacity: 0;
+    transform: translateY(6px) scale(0.975);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes backdropFade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.animate-sheet-enter {
+  animation: sheetEnter var(--dur-modal) var(--ease-out) both;
+}
+
+.animate-backdrop-fade {
+  animation: backdropFade 180ms var(--ease-out) both;
+}
+
+/* PCB hint wire animation */
 @keyframes dashFlow {
   to {
     stroke-dashoffset: -24;
@@ -47,7 +173,8 @@
 }
 
 @keyframes ledPulse {
-  0%, 100% {
+  0%,
+  100% {
     opacity: 0.92;
   }
   50% {
@@ -57,4 +184,36 @@
 
 .power-led-glow {
   animation: ledPulse 2.4s ease-in-out infinite;
+}
+
+/* Respect prefers-reduced-motion: preserve opacity clarity, drop movement */
+@media (prefers-reduced-motion: reduce) {
+  .animate-sheet-enter {
+    animation-name: backdropFade;
+  }
+  .btn-tactile:active:not(:disabled) {
+    transform: none;
+  }
+  .hint-wire-flow {
+    animation: none;
+  }
+}
+
+/* Clean restrained scrollbars */
+::-webkit-scrollbar {
+  width: 7px;
+  height: 7px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(20, 23, 28, 0.18);
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(20, 23, 28, 0.32);
 }

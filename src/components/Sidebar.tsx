@@ -1,5 +1,5 @@
 import React from 'react';
-import { CheckCircle2, Cpu, Radio, Waves } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { LabDefinition, LabId } from '../types/lab';
 
 interface SidebarProps {
@@ -20,46 +20,46 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const verifiedCount = labs.filter((l) => completedLabs[l.id]).length;
 
   return (
-    <aside className="flex w-full shrink-0 flex-col border-b border-slate-800 bg-[#0d1420] lg:w-72 lg:border-b-0 lg:border-r">
-      {/* Course Brand Header */}
-      <div className="border-b border-slate-800/90 px-4 py-4">
-        <div className="flex items-center gap-2.5">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-            <Waves className="h-5 w-5" />
-          </div>
-          <div>
-            <h1 className="text-sm font-bold tracking-tight text-white">
-              CSE 3204 Virtual Lab
-            </h1>
-            <p className="text-[11px] text-slate-400">
-              Data Communication Sessional · RUET
-            </p>
-          </div>
+    <aside className="flex w-full shrink-0 flex-col border-b border-[var(--hairline)] bg-[var(--bench-bg)] lg:sticky lg:top-0 lg:h-dvh lg:w-[264px] lg:border-b-0 lg:border-r">
+      {/* Course Masthead — quiet Swiss engineering instrument typography */}
+      <div className="border-b border-[var(--hairline)] px-5 py-5">
+        <div className="flex items-baseline justify-between gap-2">
+          <h1 className="text-[15px] font-bold tracking-[-0.02em] text-[var(--ink-primary)]">
+            CSE 3204 Lab Bench
+          </h1>
+          <span className="font-mono text-[11px] font-medium text-[var(--ink-tertiary)]">
+            RUET
+          </span>
         </div>
+        <p className="mt-0.5 text-xs text-[var(--ink-tertiary)]">
+          Data Communication Sessional
+        </p>
 
-        {/* Practice Progress Bar */}
-        <div className="mt-3.5">
-          <div className="mb-1 flex items-center justify-between text-[11px]">
-            <span className="font-medium text-slate-400">Practice Progress</span>
-            <span className="font-mono font-semibold text-emerald-400">
-              {verifiedCount} / {labs.length} Verified
+        {/* Minimalist Hairline Progress Meter */}
+        <div className="mt-4">
+          <div className="mb-1.5 flex items-baseline justify-between text-[11px]">
+            <span className="font-medium text-[var(--ink-secondary)]">
+              Verified setups
+            </span>
+            <span className="font-mono font-semibold tabular-nums text-[var(--ink-primary)]">
+              {verifiedCount}/{labs.length}
             </span>
           </div>
-          <div className="h-1.5 w-full overflow-hidden rounded-full bg-slate-800">
+          <div className="h-[3px] w-full overflow-hidden rounded-full bg-[var(--bench-recess)]">
             <div
-              className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-500"
+              className="h-full rounded-full bg-[var(--signal-pass)] transition-[width] duration-300 ease-out"
               style={{ width: `${(verifiedCount / labs.length) * 100}%` }}
             />
           </div>
         </div>
       </div>
 
-      {/* 6 Experiments List */}
-      <nav className="flex-1 overflow-y-auto p-2.5">
-        <div className="mb-2 px-2 text-[10px] font-bold uppercase tracking-widest text-slate-500">
-          Lab Experiments (1–6)
+      {/* Sequential Lab Experiment Index (01–06) */}
+      <nav aria-label="Lab experiments" className="flex-1 overflow-y-auto px-3 py-3">
+        <div className="mb-2 px-2 text-[11px] font-medium text-[var(--ink-tertiary)]">
+          Experiments
         </div>
-        <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 lg:grid-cols-1">
+        <div className="grid grid-cols-2 gap-1 sm:grid-cols-3 lg:grid-cols-1">
           {labs.map((lab) => {
             const isActive = lab.id === activeLabId;
             const isVerified = completedLabs[lab.id];
@@ -69,47 +69,61 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 key={lab.id}
                 onClick={() => onSelectLab(lab.id)}
-                className={`group flex w-full flex-col rounded-lg border p-2.5 text-left transition cursor-pointer ${
+                aria-current={isActive ? 'page' : undefined}
+                className={`btn-tactile relative flex w-full items-start gap-3 rounded-[var(--radius-sm)] px-2.5 py-2.5 text-left cursor-pointer ${
                   isActive
-                    ? 'border-emerald-500/60 bg-emerald-500/10 shadow-sm'
-                    : 'border-slate-800/80 bg-slate-900/40 hover:border-slate-700 hover:bg-slate-800/60'
+                    ? 'bg-[var(--sheet-surface)] shadow-[0_0_0_1px_rgba(20,23,28,0.12),0_2px_6px_-2px_rgba(20,23,28,0.08)]'
+                    : 'hover:bg-[var(--bench-recess)]/75'
                 }`}
               >
-                <div className="flex items-center justify-between gap-2">
+                {/* Left Cobalt Active Index Bar */}
+                {isActive && (
                   <span
-                    className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-bold ${
-                      isActive
-                        ? 'bg-emerald-500/20 text-emerald-300'
-                        : 'bg-slate-800 text-slate-400'
-                    }`}
-                  >
-                    LAB {lab.labNumber}
-                  </span>
-                  <div className="flex items-center gap-1.5">
-                    {wired > 0 && (
-                      <span className="font-mono text-[10px] text-blue-300">
-                        {wired}w
-                      </span>
-                    )}
-                    {isVerified ? (
-                      <CheckCircle2 className="h-4 w-4 text-emerald-400" />
-                    ) : (
-                      <span className="h-2 w-2 rounded-full bg-slate-700 group-hover:bg-slate-500" />
-                    )}
-                  </div>
-                </div>
+                    aria-hidden="true"
+                    className="absolute left-0 top-2 bottom-2 w-[3px] rounded-r-full bg-[var(--cord-cobalt)]"
+                  />
+                )}
 
-                <div
-                  className={`mt-1.5 text-xs font-semibold leading-snug ${
-                    isActive ? 'text-white' : 'text-slate-200'
+                <span
+                  className={`mt-0.5 font-mono text-[11px] font-semibold tabular-nums ${
+                    isActive ? 'text-[var(--cord-cobalt)]' : 'text-[var(--ink-muted)]'
                   }`}
                 >
-                  {lab.shortTitle}
-                </div>
+                  0{lab.labNumber}
+                </span>
 
-                <div className="mt-1 flex items-center gap-1 font-mono text-[10px] text-slate-400">
-                  <Cpu className="h-3 w-3 shrink-0 text-slate-500" />
-                  <span className="truncate">{lab.modelName}</span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center justify-between gap-1.5">
+                    <span
+                      className={`truncate text-[13px] leading-tight ${
+                        isActive
+                          ? 'font-semibold text-[var(--ink-primary)]'
+                          : 'font-medium text-[var(--ink-secondary)]'
+                      }`}
+                    >
+                      {lab.shortTitle}
+                    </span>
+
+                    <div className="flex shrink-0 items-center gap-1.5">
+                      {wired > 0 && (
+                        <span className="font-mono text-[10px] font-medium tabular-nums text-[var(--cord-cobalt)]">
+                          {wired}w
+                        </span>
+                      )}
+                      {isVerified && (
+                        <span
+                          title="Verified"
+                          className="flex h-4 w-4 items-center justify-center rounded-full bg-[var(--signal-pass-soft)] text-[var(--signal-pass)]"
+                        >
+                          <Check className="h-2.5 w-2.5 stroke-[3]" />
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="mt-1 font-mono text-[10.5px] text-[var(--ink-tertiary)] truncate">
+                    {lab.modelName.replace('MODEL ', '')}
+                  </div>
                 </div>
               </button>
             );
@@ -117,14 +131,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
       </nav>
 
-      {/* Footer Hardware Tip */}
-      <div className="hidden border-t border-slate-800/90 p-3.5 text-[11px] text-slate-400 lg:block">
-        <div className="flex items-start gap-2 rounded-lg border border-slate-800 bg-slate-900/60 p-2.5">
-          <Radio className="mt-0.5 h-4 w-4 shrink-0 text-emerald-400" />
-          <p className="leading-relaxed">
-            <strong className="text-slate-200">Bench Tip:</strong> Banana plugs are stackable—connect multiple patch cords or scope probes to the same terminal just like on the real TCM trainer kits.
-          </p>
-        </div>
+      {/* Quiet Hardware Bench Note */}
+      <div className="hidden border-t border-[var(--hairline)] px-5 py-4 text-[11.5px] leading-relaxed text-[var(--ink-tertiary)] lg:block">
+        <p>
+          <strong className="font-semibold text-[var(--ink-secondary)]">
+            Stackable leads:
+          </strong>{' '}
+          Plug multiple patch cords or scope probes onto the same banana terminal just like on the physical TCM kits.
+        </p>
       </div>
     </aside>
   );
